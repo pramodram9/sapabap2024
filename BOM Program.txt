@@ -1,0 +1,381 @@
+*&---------------------------------------------------------------------*
+*& Report ZBI_MATBOM
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZBI_MATBOM.
+
+TABLES: MARA,MARC.
+
+TYPES : begin of ty_tab,
+matnr TYPE mara-matnr,
+werks TYPE mast-werks,
+stlaN TYPE mast-stlaN,
+stlnr TYPE mast-stlnr,
+stlal TYPE mast-stlal,
+end of ty_tab.
+
+data: it_tab TYPE STANDARD TABLE OF ty_tab,
+wa_tab TYPE ty_tab.
+
+TYPES : begin of ty_STB.
+INCLUDE STRUCTURE STPOX.
+TYPES: END OF TY_STB.
+
+DATA : IT_STB TYPE STANDARD TABLE OF TY_STB,
+       ls_bom_exp_hdr TYPE CSCMAT,
+WA_STB TYPE TY_STB,
+fs_stb TYPE TY_STB.
+
+TYPES : begin of ty_STB1,
+matnr TYPE mara-matnr,
+ojtxb TYPE ojtxp,
+mtart TYPE mtart,
+mnglg TYPE cs_e_mnglg,
+meins TYPE meins,
+idnrk TYPE matnr,
+ojtxp TYPE ojtxp,
+END OF TY_STB1.
+
+DATA : IT_STB1 TYPE STANDARD TABLE OF TY_STB1,
+WA_STB1 TYPE TY_STB1,
+fs_stb1 TYPE ty_stb1.
+
+types: begin of ty_final,
+HEAD_MATNR TYPE mara-matnr,
+ojtxb TYPE ojtxp,
+mtart TYPE mtart,
+mnglg TYPE cs_e_mnglg,
+meins TYPE meins,
+ITEM_MATNR TYPE matnr,
+ojtxp TYPE ojtxp,
+end of ty_final.
+
+data : it_final TYPE STANDARD TABLE OF ty_final,
+wa_final TYPE ty_final,
+       it_final1 TYPE STANDARD TABLE OF ZBI_MATBOM,
+       wa_final1 TYPE ZBI_MATBOM.
+
+TYPE-POOLS: slis.
+DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
+gd_repid LIKE sy-repid.
+
+
+* *Screen elements................................
+selection-screen begin of block b1 with frame title text-001.
+
+SELECT-OPTIONS : s_matnr FOR mara-matnr ,
+                 s_werks FOR marc-werks NO INTERVALS.
+parameters:
+*s_matnr type mast-matnr default '' obligatory," Material Number
+*s_werks type mast-werks default 'P001' obligatory, " Plant
+p_stlan type mast-stlan default '1' obligatory, " Alternative BOM
+p_capid type rc29l-capid default 'PP01' . " Application
+selection-screen end of block b1.
+
+PARAMETERS:r_dis RADIOBUTTON GROUP a DEFAULT 'X', " Display
+r_upd RADIOBUTTON GROUP a, "Update
+r_del RADIOBUTTON GROUP a. "Truncate Data
+
+START-OF-SELECTION.
+
+ IF r_del IS NOT INITIAL.
+    PERFORM DELETE_BOM_DATA.
+     ENDIF.
+
+perform bom_header.
+perform Bom_child.
+
+  IF r_dis IS NOT INITIAL.
+PERFORM Build_catalog.
+perform display_output.
+
+   ELSEIF r_upd IS NOT INITIAL.
+    PERFORM UPDATE_BOM_DATA.
+  ENDIF.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_BOM_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+FORM DELETE_BOM_DATA .
+  CALL FUNCTION 'DB_TRUNCATE_TABLE'
+    EXPORTING
+      tabname = 'ZBI_MATBOM'.
+  COMMIT WORK.
+ENDFORM.      " DELETE_BOM_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  UPDATE_BOM_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+FORM UPDATE_BOM_DATA .
+CLEAR wa_final1.
+LOOP AT it_final INTO wa_final.
+MOVE-CORRESPONDING wa_final to wa_final1.
+ APPEND wa_final1 TO it_final1.
+ENDLOOP.
+
+MODIFY  ZBI_MATBOM FROM TABLE it_FINAL1.
+
+  COMMIT WORK.
+ENDFORM.                    " UPDATE_BOM_DATA
+
+*&---------------------------------------------------------------------*
+*& Form BOM_HEADER
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM BOM_HEADER .
+
+select matnr werks stlaN stLnr stlal from mast
+INto CORRESPONDING FIELDS OF TABLE it_tab
+where matnr IN s_matnr and
+werks IN s_werks and
+stlAn = p_stlAn.
+
+clear wa_tab.
+
+loop at it_tab INTO wa_tab.
+
+CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+EXPORTING
+CAPID = 'PP01'
+DATUV = SY-DATUM
+MKTLS = 'X'
+MTNRV = wa_tab-matnr
+STLAL = wa_tab-stlal
+STLAN = wa_tab-stlan
+STPST = 0
+SVWVO = 'X'
+WERKS = WA_TAB-WERKS
+TABLES
+STB = IT_STB
+*MATCAT = ls_bom_exp_hdr
+EXCEPTIONS
+ALT_NOT_FOUND = 1
+CALL_INVALID = 2
+MATERIAL_NOT_FOUND = 3
+MISSING_AUTHORIZATION = 4
+NO_BOM_FOUND = 5
+NO_PLANT_DATA = 6
+NO_SUITABLE_BOM_FOUND = 7
+CONVERSION_ERROR = 8
+OTHERS = 9
+.
+
+IF SY-SUBRC <> 0.
+MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+ENDIF.
+clear: wa_stb1 , wa_stb.
+
+loop at it_stb INTO wa_stb.
+wa_stb1-matnr = wa_tab-matnr.
+wa_stb1-ojtxb = WA_STB-OJTXB.
+wa_stb1-mtart = wa_stb-mtart.
+wa_stb1-mnglg = wa_stb-mnglg.
+wa_stb1-meins = wa_stb-meins.
+wa_stb1-idnrk = wa_stb-idnrk.
+wa_stb1-ojtxp = wa_stb-ojtxp.
+APPEND wa_stb1 to it_stb1.
+
+ENDLOOP.
+
+ENDLOOP.
+
+ENDFORM. " BOM_HEADER
+*&---------------------------------------------------------------------*
+*& Form BOM_CHILD
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM BOM_CHILD .
+clear fs_stb1.
+if IT_STB1 is not initial.
+
+loop at IT_STB1 into fs_stb1.
+
+if sy-subrc = 0.
+wa_final-HEAD_MATNR = fs_stb1-matnr.
+wa_final-ojtxb = FS_STB1-OJTXB.
+wa_final-mtart = fs_stb1-mtart.
+wa_final-mnglg = fs_stb1-mnglg.
+wa_final-meins = fs_stb1-meins.
+wa_final-ITEM_MATNR = fs_stb1-idnrk.
+wa_final-ojtxp = fs_stb1-ojtxp.
+append wa_final to it_final.
+ENDIF.
+
+endloop.
+ENDIF.
+
+clear wa_final.
+
+loop at it_final INTO wa_final.
+PERFORM RECURSIVE_BOM .
+endloop.
+
+ENDFORM. " BOM_CHILD
+
+FORM RECURSIVE_BOM .
+
+CLEAR : it_tab, IT_STB , IT_STB1.
+clear : fs_stb,fs_stb1,wa_tab.
+select matnr werks stlaN stLnr stlal from mast
+INto CORRESPONDING FIELDS OF TABLE it_tab
+where matnr = WA_FINAL-ITEM_MATNR and
+werks IN s_werks and
+stlAn = p_stlAn.
+
+loop at it_tab INTO wa_tab.
+CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+EXPORTING
+CAPID = 'PP01'
+DATUV = SY-DATUM
+MKTLS = 'X'
+MTNRV = wa_tab-matnr
+STLAL = wa_tab-stlal
+STLAN = wa_tab-stlan
+STPST = 0
+SVWVO = 'X'
+WERKS = WA_TAB-WERKS
+TABLES
+STB = IT_STB
+EXCEPTIONS
+ALT_NOT_FOUND = 1
+CALL_INVALID = 2
+MATERIAL_NOT_FOUND = 3
+MISSING_AUTHORIZATION = 4
+NO_BOM_FOUND = 5
+NO_PLANT_DATA = 6
+NO_SUITABLE_BOM_FOUND = 7
+CONVERSION_ERROR = 8
+OTHERS = 9
+.
+IF SY-SUBRC <> 0.
+MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+ENDIF.
+clear: wa_stb1, wa_stb.
+
+
+loop at it_stb INTO wa_stb.
+wa_stb1-matnr = wa_tab-matnr.
+wa_stb1-ojtxb = WA_STB-OJTXB.
+wa_stb1-mtart = wa_stb-mtart.
+wa_stb1-mnglg = wa_stb-mnglg.
+wa_stb1-meins = wa_stb-meins.
+wa_stb1-idnrk = wa_stb-idnrk.
+wa_stb1-ojtxp = wa_stb-ojtxp.
+APPEND wa_stb1 to it_stb1.
+ENDLOOP.
+
+
+loop at IT_STB1 into fs_stb1.
+if sy-subrc = 0.
+wa_final-HEAD_MATNR = fs_stb1-matnr.
+wa_final-ojtxb = FS_STB1-OJTXB.
+wa_final-mtart = fs_stb1-mtart.
+wa_final-mnglg = fs_stb1-mnglg.
+wa_final-meins = fs_stb1-meins.
+wa_final-ITEM_MATNR = fs_stb1-idnrk.
+wa_final-ojtxp = fs_stb1-ojtxp.
+append wa_final to it_final.
+ENDIF.
+endloop.
+
+ENDLOOP.
+
+ENDFORM. " RECURSIVE_BOM
+*&---------------------------------------------------------------------*
+*& Form BUILD_CATALOG
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM BUILD_CATALOG .
+fieldcatalog-fieldname = 'HEAD_MATNR'.
+fieldcatalog-seltext_m = 'FG/ Parent'.
+fieldcatalog-col_pos = 0.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'ITEM_MATNR'.
+fieldcatalog-seltext_m = 'Component'.
+fieldcatalog-col_pos = 1.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'MTART'.
+fieldcatalog-seltext_m = 'Material Type'.
+fieldcatalog-col_pos = 2.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'OJTXB'.
+fieldcatalog-seltext_m = 'FG/ Parent Desc'.
+fieldcatalog-col_pos = 3.
+fieldcatalog-outputlen = 40.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'MNGLG'.
+fieldcatalog-seltext_m = 'Quantity Required'.
+fieldcatalog-col_pos = 4.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'MEINS'.
+fieldcatalog-seltext_m = 'Unit Of Measure'.
+fieldcatalog-col_pos = 5.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+fieldcatalog-fieldname = 'OJTXP'.
+fieldcatalog-seltext_m = 'Component Desc'.
+fieldcatalog-col_pos = 6.
+fieldcatalog-outputlen = 40.
+APPEND fieldcatalog TO fieldcatalog.
+CLEAR fieldcatalog.
+
+ENDFORM. " BUILD_CATALOG
+*&---------------------------------------------------------------------*
+
+*& Form DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM DISPLAY_OUTPUT .
+gd_repid = sy-repid.
+CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+EXPORTING
+i_callback_program = gd_repid
+it_fieldcat = fieldcatalog[]
+* i_callback_top_of_page = 'TOP-OF-PAGE'
+I_SAVE = 'X'
+* IS_VARIANT = g_variant
+TABLES
+t_outtab = it_final
+EXCEPTIONS
+program_error = 1
+OTHERS = 2.
+IF sy-subrc <> 0.
+ENDIF.
+ENDFORM. " DISPLAY_OUTPUT
