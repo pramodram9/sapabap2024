@@ -14,8 +14,15 @@ TYPES : BEGIN OF ty_tab,
           stlal TYPE mast-stlal,
         END OF ty_tab.
 
-DATA: it_tab TYPE STANDARD TABLE OF ty_tab,
-      wa_tab TYPE ty_tab.
+TYPES : BEGIN OF ty_rout,
+          item_matnr TYPE mara-matnr,
+          plnnr      TYPE plnnr,
+        END OF ty_rout.
+
+DATA: it_tab  TYPE STANDARD TABLE OF ty_tab,
+      wa_tab  TYPE ty_tab,
+      gt_rout TYPE STANDARD TABLE OF ty_rout,
+      wa_rout TYPE ty_rout.
 
 TYPES : BEGIN OF ty_stb.
           INCLUDE STRUCTURE stpox.
@@ -51,6 +58,7 @@ TYPES: BEGIN OF ty_final,
          meins      TYPE meins,
          item_matnr TYPE matnr,
          ojtxp      TYPE ojtxp,
+         plnnr      TYPE plnnr,
        END OF ty_final.
 
 DATA : it_final TYPE STANDARD TABLE OF ty_final,
@@ -232,6 +240,8 @@ FORM bom_child .
     PERFORM recursive_bom .
   ENDLOOP.
 
+  PERFORM fill_rout.
+
 ENDFORM. " BOM_CHILD
 
 FORM recursive_bom .
@@ -373,6 +383,13 @@ FORM build_catalog .
   APPEND fieldcatalog TO fieldcatalog.
   CLEAR fieldcatalog.
 
+  fieldcatalog-fieldname = 'PLNNR'.
+  fieldcatalog-seltext_m = 'Routing Number'.
+  fieldcatalog-col_pos = 9.
+  fieldcatalog-outputlen = 40.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
 ENDFORM. " BUILD_CATALOG
 *&---------------------------------------------------------------------*
 
@@ -399,4 +416,37 @@ FORM display_output .
       OTHERS             = 2.
   IF sy-subrc <> 0.
   ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form fill_rout
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM fill_rout .
+
+  MOVE-CORRESPONDING it_final TO gt_rout.
+  DELETE  ADJACENT DUPLICATES FROM gt_rout COMPARING item_matnr.
+
+  SELECT
+    matnr,
+    plnnr
+    FROM mapl
+    INTO TABLE @DATA(lt_rout)
+    FOR ALL ENTRIES IN @gt_rout
+    WHERE matnr = @gt_rout-item_matnr.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT it_final ASSIGNING FIELD-SYMBOL(<lfs_final>).
+      IF <lfs_final> IS ASSIGNED.
+        READ TABLE lt_rout INTO wa_rout WITH KEY matnr = <lfs_final>-item_matnr.
+        IF sy-subrc is INITIAL.
+          <lfs_final>-plnnr = wa_rout-plnnr.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
 ENDFORM.
