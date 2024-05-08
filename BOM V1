@@ -254,7 +254,7 @@ FORM recursive_bom .
   werks IN s_werks AND
   stlan = p_stlan.
 
-  DATA(lv_qty) = wa_final-mnglg.
+  DATA(lv_qty) = wa_final-mnglg1.
 
   LOOP AT it_tab INTO wa_tab.
     CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
@@ -298,7 +298,7 @@ FORM recursive_bom .
       APPEND wa_stb1 TO it_stb1.
     ENDLOOP.
 
-    gv_counter = gv_counter + 1.
+    gv_counter = wa_final-stlan + 1.
 
     LOOP AT it_stb1 INTO fs_stb1.
       IF sy-subrc = 0.
