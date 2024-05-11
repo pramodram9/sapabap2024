@@ -1,4 +1,36 @@
+REPORT zreport_rnp.
 
+TABLES: mara, marc, mapl, afko, aufk.
+
+TYPES: BEGIN OF ty_final,
+         aufnr TYPE aufnr,
+         aufpl TYPE co_aufpl,
+         posnr TYPE posnr,
+         projn TYPE projn,
+         objnr TYPE objnr,
+         aplzl TYPE co_aplzl,
+         plnfl TYPE plnfolge,
+         vornr TYPE vornr,
+         psphi TYPE prps-psphi,
+         pspnr TYPE proj-pspnr,
+         pspid TYPE proj-pspid,
+         stat  TYPE jest-stat,
+         txt04 TYPE tj02t-txt04,
+       END OF ty_final.
+
+DATA: lt_final TYPE STANDARD TABLE OF ty_final.
+
+
+
+DATA: lo_alv TYPE REF TO cl_salv_table.
+SELECT-OPTIONS: s_matnr FOR mara-matnr OBLIGATORY,
+                s_werks FOR marc-werks OBLIGATORY.
+
+START-OF-SELECTION.
+
+  SELECT mara~matnr, marc~werks, mapl~plnnr, mapl~plnal
+    FROM mara
+    INNER JOIN marc ON mara~matnr = marc~matnr
     INNER JOIN mapl ON marc~matnr = mapl~matnr AND marc~werks = mapl~werks
     INTO TABLE @DATA(lt_mapl_materials)
     WHERE mara~matnr IN @s_matnr
@@ -10,31 +42,40 @@
            afko~aufpl,
            afpo~posnr,
            afpo~projn,
-           prps~psphi,
-           proj~pspnr,
-           proj~pspid,
            aufk~objnr,
            afvc~aplzl,
            afvc~plnfl,
            afvc~vornr
-           "jest~stat,
-           "tj02t~txt04
       FROM afko AS afko
       INNER JOIN afpo ON afko~aufnr = afpo~aufnr
       INNER JOIN aufk ON afko~aufnr = aufk~aufnr
-      INNER JOIN prps ON afpo~projn = prps~pspnr
-      INNER JOIN proj ON prps~psphi = proj~pspnr
       INNER JOIN afvc ON afko~aufpl = afvc~aufpl
-      "INNER JOIN jest ON aufk~objnr = jest~objnr
-      "INNER JOIN tj02t ON jest~stat = tj02t~istat
       INTO TABLE @DATA(lt_materials)
       FOR ALL ENTRIES IN @lt_mapl_materials
       WHERE afko~plnnr = @lt_mapl_materials-plnnr
         AND afko~plnal = @lt_mapl_materials-plnal.
-        "AND tj02t~spras = 'E'
-        "AND tj02t~txt04 IN ('TECO','CONF').
 
     IF sy-subrc IS INITIAL.
+
+      SELECT prps~psphi,
+           proj~pspnr,
+           proj~pspid
+        FROM prps AS prps
+        INNER JOIN proj ON prps~psphi = proj~pspnr
+        INTO TABLE @DATA(lt_proj)
+        FOR ALL ENTRIES IN @lt_materials
+        WHERE prps~pspnr = @lt_materials-projn.
+
+      SELECT jest~stat,
+             tj02t~txt04
+        FROM jest AS jest
+        INNER JOIN tj02t AS tj02t ON jest~stat = tj02t~istat
+        INTO TABLE @DATA(lt_stat)
+        FOR ALL ENTRIES IN @lt_materials
+        WHERE jest~objnr = @lt_materials-objnr
+        AND tj02t~spras = 'E'
+        AND tj02t~txt04 IN ('TECO','CONF','CNF').
+
 
       " Call the factory method to create an instance of the ALV table
       TRY.
