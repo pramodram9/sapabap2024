@@ -1,0 +1,162 @@
+
+TABLES: mara,marc,mapl.
+
+DATA: IT_FINAL TYPE TABLE OF ZBI_MATBOM_ASMB.
+
+SELECTION-SCREEN: BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+SELECT-OPTIONS : s_matnr FOR mara-matnr ,
+                 s_werks FOR marc-werks NO INTERVALS,
+                 s_plnnr FOR mapl-plnnr,
+                 s_ersda FOR mara-ersda.
+SELECTION-SCREEN: END OF BLOCK b1.
+
+SELECTION-SCREEN: BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-002.
+PARAMETERS : r_mod RADIOBUTTON GROUP rad, " modificaiton
+             r_del RADIOBUTTON GROUP rad. " deletion
+SELECTION-SCREEN: END OF BLOCK b2.
+
+AT SELECTION-SCREEN.
+
+*  AUTHORITY-CHECK OBJECT 'ZMM_USER'
+*             ID 'TCODE' FIELD sy-tcode.
+*  IF sy-subrc <> 0.
+*    MESSAGE 'You are not Authorized to use this Transaction' TYPE 'E'  ##NO_TEXT.
+*  ENDIF.
+
+START-OF-SELECTION .
+
+
+  SELECT a~matnr , b~werks , c~plnnr , c~plnal
+    FROM mara AS a
+    INNER JOIN marc AS b
+    ON a~matnr = b~matnr
+    INNER JOIN mapl AS c ON b~matnr = c~matnr
+
+
+  AND b~werks = c~werks INTO TABLE @DATA(it_tab1) WHERE a~matnr IN @s_matnr AND b~werks IN @s_werks AND c~plnnr IN @s_plnnr.
+
+  SORT it_tab1 BY MATNR WERKS PLNNR PLNAL.
+
+  DELETE ADJACENT DUPLICATES FROM it_tab1 COMPARING MATNR WERKS PLNNR PLNAL.
+
+
+*  cl_demo_output=>display( it_tab1 ).
+
+*DATA(HTML) = CL_DEMO_OUTPUT=>GET( IT_MANTR ).
+*
+*CL_ABAP_BROWSER=>SHOW_HTML( HTML_STRING = HTML ).
+
+*CL_DEMO_OUTPUT=>NEW( 'TEXT' )->DISPLAY( IT_MANTR  ).
+
+
+  IF it_tab1 IS NOT INITIAL.
+
+*    SELECT * FROM afko INTO TABLE @DATA(it_afko) FOR ALL ENTRIES IN @it_tab1 WHERE plnnr = @it_tab1-plnnr AND  plnal = @it_tab1-plnal.
+*
+*    IF sy-subrc = 0.
+*
+*      SELECT * FROM afvc INTO TABLE @DATA(it_afvc) FOR ALL ENTRIES IN @it_afko WHERE aufpl = @it_afko-aufpl.
+*
+*      IF it_afvc IS NOT INITIAL.
+*
+*      ENDIF.
+
+*    ENDIF.
+
+    SELECT
+    a~stlnr ,
+    a~stlal ,
+    a~aufpl ,
+    a~aufnr ,
+    a~gltrp ,
+    a~gstrp ,
+    a~ftrms ,
+    a~gltrs ,
+    a~gstrs ,
+    a~gstri ,
+    a~getri ,
+    a~gltri ,
+    a~ftrmi ,
+    a~ftrmp ,
+    a~rsnum ,
+    a~gasmg ,
+    a~gamng ,
+    c~bdmng ,
+    a~gmein ,
+    a~plnbez ,
+    c~rspos ,
+    c~matnr ,
+    a~plnty ,
+    a~plnnr ,
+    a~plnaw ,
+*    a~plnal ,
+    a~pverw ,
+    a~plauf ,
+    a~plgrp ,
+    a~stlty ,
+    a~stlbez ,
+    a~stlst ,
+*    a~stlnr ,
+    a~sdatv ,
+    a~sbmng ,
+    a~sbmeh ,
+    a~saenr ,
+*    a~stlal ,
+    a~stlan ,
+    a~slsvn ,
+    a~slsbs ,
+*      b~aufpl ,
+b~aplzl ,
+b~plnfl ,
+b~plnkn ,
+b~plnal ,
+*b~plnty ,
+b~vintv ,
+*b~plnnr ,
+b~zaehl ,
+b~vornr ,
+b~steus ,
+b~arbid ,
+b~pdest ,
+b~werks ,
+b~ktsch ,
+b~ltxa1 ,
+b~ltxa2 ,
+b~txtsp
+*b~bmeins ,
+*b~bmenge
+      FROM afko AS a
+      INNER JOIN afvc AS b ON a~aufpl = b~aufpl
+      INNER JOIN RESB AS c on a~RSNUM = c~RSNUM and a~aufpl = c~aufpl and b~aplzl = c~aplzl and b~plnfl = c~plnfl and b~vornr = c~vornr and a~aufpl NE '' and c~aplzl NE ''
+      FOR ALL ENTRIES IN @it_tab1 WHERE a~plnbez = @it_tab1-matnr AND a~plnnr = @it_tab1-plnnr AND a~plnal = @it_tab1-plnal
+      INTO CORRESPONDING FIELDS OF TABLE @it_final.
+
+    IF it_final IS NOT INITIAL.
+
+      DELETE ADJACENT DUPLICATES FROM it_final.
+
+*      cl_demo_output=>display( it_final ).
+
+      IF r_mod EQ 'X'.
+
+        MODIFY ZBI_MATBOM_ASMB FROM TABLE it_final.  "Modifying final internal table data into Ztable
+
+        COMMIT WORK.
+
+       ENDIF.
+
+
+    ENDIF.
+
+    IF r_del = 'X'.
+*       DELETE FROM ZBI_MATBOM_ASMB. " Clearing Ztable data.
+*        COMMIT WORK.
+**        INSERT zbom_data FROM TABLE it_final. "Inserting final internal table data into Ztable
+*        ENDIF.
+
+  CALL FUNCTION 'DB_TRUNCATE_TABLE'
+    EXPORTING
+      tabname = 'ZBI_MATBOM_ASMB'.
+ENDIF.
+
+  ENDIF.
