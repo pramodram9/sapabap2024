@@ -1,0 +1,64 @@
+
+    INNER JOIN mapl ON marc~matnr = mapl~matnr AND marc~werks = mapl~werks
+    INTO TABLE @DATA(lt_mapl_materials)
+    WHERE mara~matnr IN @s_matnr
+      AND marc~werks IN @s_werks.
+
+  IF sy-subrc = 0.
+
+    SELECT afko~aufnr,
+           afko~aufpl,
+           afpo~posnr,
+           afpo~projn,
+           prps~psphi,
+           proj~pspnr,
+           proj~pspid,
+           aufk~objnr,
+           afvc~aplzl,
+           afvc~plnfl,
+           afvc~vornr
+           "jest~stat,
+           "tj02t~txt04
+      FROM afko AS afko
+      INNER JOIN afpo ON afko~aufnr = afpo~aufnr
+      INNER JOIN aufk ON afko~aufnr = aufk~aufnr
+      INNER JOIN prps ON afpo~projn = prps~pspnr
+      INNER JOIN proj ON prps~psphi = proj~pspnr
+      INNER JOIN afvc ON afko~aufpl = afvc~aufpl
+      "INNER JOIN jest ON aufk~objnr = jest~objnr
+      "INNER JOIN tj02t ON jest~stat = tj02t~istat
+      INTO TABLE @DATA(lt_materials)
+      FOR ALL ENTRIES IN @lt_mapl_materials
+      WHERE afko~plnnr = @lt_mapl_materials-plnnr
+        AND afko~plnal = @lt_mapl_materials-plnal.
+        "AND tj02t~spras = 'E'
+        "AND tj02t~txt04 IN ('TECO','CONF').
+
+    IF sy-subrc IS INITIAL.
+
+      " Call the factory method to create an instance of the ALV table
+      TRY.
+          cl_salv_table=>factory(
+            IMPORTING
+              r_salv_table = lo_alv
+            CHANGING
+              t_table      = lt_materials ).
+        CATCH cx_salv_msg INTO DATA(lx_msg).
+          WRITE: / 'Error generating ALV report:', lx_msg->get_text( ).
+          RETURN.
+      ENDTRY.
+
+      " Set some properties for the ALV grid display
+      lo_alv->get_columns( )->set_optimize( abap_true ).
+
+      " Display the ALV grid
+      TRY.
+          lo_alv->display( ).
+        CATCH cx_salv_msg INTO lx_msg.
+          " Handle the exception if the ALV could not be displayed
+          WRITE: / 'Error displaying ALV report:', lx_msg->get_text( ).
+      ENDTRY.
+    ELSE.
+      WRITE: / 'No data available to display.'.
+    ENDIF.
+  ENDIF.
