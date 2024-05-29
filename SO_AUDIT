@@ -1,0 +1,98 @@
+*&---------------------------------------------------------------------*
+*& Report ZSO_AUDIT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zso_audit.
+TABLES: vbak.
+
+TABLES: cdhdr, cdpos.
+
+TYPES: BEGIN OF ty_change_data,
+         objectid  TYPE cdhdr-objectid,
+         changenr  TYPE cdhdr-changenr,
+         username  TYPE cdhdr-username,
+         udate     TYPE cdhdr-udate,
+         utime     TYPE cdhdr-utime,
+         tcode     TYPE cdhdr-tcode,
+         fname     TYPE cdpos-fname,
+         value_old TYPE cdpos-value_old,
+         unit_old  TYPE cdpos-unit_old,
+         value_new TYPE cdpos-value_new,
+         unit_new  TYPE cdpos-unit_new,
+         tabkey    TYPE cdpos-tabkey,
+       END OF ty_change_data.
+
+DATA: it_change_data TYPE TABLE OF ty_change_data,
+      wa_change_data TYPE ty_change_data.
+
+TYPES: BEGIN OF ty_output,
+         udate          TYPE cdhdr-udate,
+         username       TYPE cdhdr-username,
+         objectid       TYPE cdhdr-objectid,
+         tabkey         TYPE cdpos-tabkey,
+         vbak_kunnr     TYPE vbak-kunnr,
+         kna1_name1     TYPE kna1-name1,
+         likp_kunnr     TYPE likp-kunnr,
+         vbap_werks     TYPE vbap-werks,
+         vbap_matnr     TYPE vbap-matnr,
+         value_old      TYPE cdpos-value_old,
+         value_new      TYPE cdpos-value_new,
+         unit_old       TYPE cdpos-unit_old,
+         unit_new       TYPE cdpos-unit_new,
+         likp_vbeln     TYPE likp-vbeln,
+         lips_posnr     TYPE lips-posnr,
+         lips_charg     TYPE lips-charg,
+         lips_lfimg     TYPE lips-lfimg,
+         lips_meins     TYPE lips-meins,
+         likp_wadat_ist TYPE likp-wadat_ist,
+         mkpf_budat     TYPE mkpf-budat,
+         mseg_erfmg     TYPE mseg-erfmg,
+         mseg_uom       TYPE mseg-meins,
+       END OF ty_output.
+
+TYPES: tt_output TYPE STANDARD TABLE OF ty_output WITH DEFAULT KEY.
+
+DATA: it_output TYPE tt_output,
+      wa_output TYPE ty_output.
+
+* ALV objects
+DATA: lo_alv       TYPE REF TO cl_salv_table,
+      lo_functions TYPE REF TO cl_salv_functions_list.
+
+DATA: it_vbak TYPE TABLE OF vbak,
+      wa_vbak TYPE vbak.
+
+SELECT-OPTIONS: so_udate FOR cdhdr-udate.
+
+START-OF-SELECTION.
+
+  SELECT hdr~objectid hdr~changenr hdr~username hdr~udate hdr~utime hdr~tcode
+         pos~fname pos~value_old pos~unit_old pos~value_new pos~unit_new pos~tabkey
+    FROM cdhdr AS hdr
+    INNER JOIN cdpos AS pos ON hdr~changenr = pos~changenr
+    INTO TABLE it_change_data
+    WHERE hdr~udate IN so_udate.
+
+  IF sy-subrc = 0.
+
+* Generate ALV Grid instance using the factory method
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = lo_alv
+          CHANGING
+            t_table      = it_output ).
+
+* Activate ALV Functions
+        lo_functions = lo_alv->get_functions( ).
+        lo_functions->set_all( abap_true ).
+
+* Display ALV Grid
+        lo_alv->display( ).
+
+      CATCH cx_salv_msg INTO DATA(lx_msg).
+        MESSAGE lx_msg TYPE 'I'.
+    ENDTRY.
+
+  ENDIF.
