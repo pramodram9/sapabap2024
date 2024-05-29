@@ -8,6 +8,18 @@ TABLES: vbak.
 
 TABLES: cdhdr, cdpos.
 
+TABLES: agr_users.
+
+TYPES: BEGIN OF ty_user,
+         uname TYPE agr_users-uname,
+       END OF ty_user,
+       tt_user_range TYPE RANGE OF agr_users-uname.
+
+DATA: it_user       TYPE TABLE OF ty_user,
+      wa_user       TYPE ty_user,
+      it_user_range TYPE tt_user_range,
+      wa_user_range LIKE LINE OF it_user_range.
+
 TYPES: BEGIN OF ty_change_data,
          objectid  TYPE cdhdr-objectid,
          changenr  TYPE cdhdr-changenr,
@@ -64,35 +76,55 @@ DATA: it_vbak TYPE TABLE OF vbak,
       wa_vbak TYPE vbak.
 
 SELECT-OPTIONS: so_udate FOR cdhdr-udate.
+PARAMETERS: p_role TYPE agr_define-agr_name DEFAULT 'ZM_ECC_US_SD:SALESORDER_PWI'.
 
 START-OF-SELECTION.
 
-  SELECT hdr~objectid hdr~changenr hdr~username hdr~udate hdr~utime hdr~tcode
-         pos~fname pos~value_old pos~unit_old pos~value_new pos~unit_new pos~tabkey
-    FROM cdhdr AS hdr
-    INNER JOIN cdpos AS pos ON hdr~changenr = pos~changenr
-    INTO TABLE it_change_data
-    WHERE hdr~udate IN so_udate.
+  SELECT uname
+    FROM agr_users
+    INTO TABLE it_user
+    WHERE agr_name = p_role.
 
   IF sy-subrc = 0.
 
+    LOOP AT it_user INTO wa_user.
+      wa_user_range-sign = 'I'.
+      wa_user_range-option = 'EQ'.
+      wa_user_range-low = wa_user-uname.
+      APPEND wa_user_range TO it_user_range.
+    ENDLOOP.
+
+* Fetch data from Change tables
+    SELECT hdr~objectid hdr~changenr hdr~username hdr~udate hdr~utime hdr~tcode
+           pos~fname pos~value_old pos~unit_old pos~value_new pos~unit_new pos~tabkey
+      FROM cdhdr AS hdr
+      INNER JOIN cdpos AS pos ON hdr~changenr = pos~changenr
+      INTO TABLE it_change_data
+      WHERE hdr~udate IN so_udate
+      AND   hdr~username IN it_user_range
+      AND   hdr~tcode = 'VA02'
+      AND   pos~fname IN ( 'WMENG','CHARG','KEY' ).
+
+    IF sy-subrc = 0.
+      MOVE-CORRESPONDING it_change_data TO it_output.
 * Generate ALV Grid instance using the factory method
-    TRY.
-        cl_salv_table=>factory(
-          IMPORTING
-            r_salv_table = lo_alv
-          CHANGING
-            t_table      = it_output ).
+      TRY.
+          cl_salv_table=>factory(
+            IMPORTING
+              r_salv_table = lo_alv
+            CHANGING
+              t_table      = it_output ).
 
 * Activate ALV Functions
-        lo_functions = lo_alv->get_functions( ).
-        lo_functions->set_all( abap_true ).
+          lo_functions = lo_alv->get_functions( ).
+          lo_functions->set_all( abap_true ).
 
 * Display ALV Grid
-        lo_alv->display( ).
+          lo_alv->display( ).
 
-      CATCH cx_salv_msg INTO DATA(lx_msg).
-        MESSAGE lx_msg TYPE 'I'.
-    ENDTRY.
+        CATCH cx_salv_msg INTO DATA(lx_msg).
+          MESSAGE lx_msg TYPE 'I'.
+      ENDTRY.
 
+    ENDIF.
   ENDIF.
