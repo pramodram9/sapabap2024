@@ -7,22 +7,17 @@ REPORT zso_audit.
 TABLES: vbak,cdhdr,cdpos,agr_users,vbap,likp,lips,kna1.
 
 TYPES: BEGIN OF ty_sales_order_data,
-         kunnr          TYPE vbak-kunnr,
-         posnr          TYPE vbap-posnr,
-         matnr          TYPE vbap-matnr,
-         werks          TYPE vbap-werks,
+         vbak_vbeln     TYPE vbak-vbeln,
+         vbak_kunnr     TYPE vbak-kunnr,
+         vbap_posnr     TYPE vbap-posnr,
+         vbap_matnr     TYPE vbap-matnr,
+         vbap_werks     TYPE vbap-werks,
          likp_vbeln     TYPE likp-vbeln,
-         likp_kunnr     TYPE likp-kunnr,
          likp_wadat_ist TYPE likp-wadat_ist,
-         lips_vbeln     TYPE lips-vbeln,
          lips_posnr     TYPE lips-posnr,
-         lips_matnr     TYPE lips-matnr,
          lips_charg     TYPE lips-charg,
          lips_lfimg     TYPE lips-lfimg,
          lips_meins     TYPE lips-meins,
-         lips_vgbel     TYPE lips-vgbel,
-         lips_vgpos     TYPE lips-vgpos,
-         kna1_kunnr     TYPE kna1-kunnr,
          kna1_name1     TYPE kna1-name1,
        END OF ty_sales_order_data.
 
@@ -132,41 +127,68 @@ START-OF-SELECTION.
       AND   pos~fname IN ( 'WMENG','CHARG' ).
 
     IF sy-subrc = 0.
-
+*segregate the SO number
       it_vbeln = VALUE #( FOR lw IN it_change_data ( vbeln = lw-objectid ) ).
-
-      SELECT vbak~kunnr,
-       vbap~posnr,
-       vbap~matnr,
-       vbap~werks,
-       kna1~name1
+*Fetch the SO relevant data
+      SELECT vbak~vbeln AS vbak_vbeln,
+       vbak~kunnr AS vbak_kunnr,
+       vbap~posnr AS vbap_posnr,
+       vbap~matnr AS vbap_matnr,
+       vbap~werks AS vbap_werks,
+       kna1~name1 AS kna1_name1,
+       likp~vbeln AS likp_vbeln,
+       likp~wadat_ist AS likp_wadat_ist,
+       lips~posnr AS lips_posnr,
+       lips~charg AS lips_charg,
+       lips~lfimg AS lips_lfimg,
+       lips~meins AS lips_meins
   FROM vbak
   INNER JOIN vbap ON vbak~vbeln = vbap~vbeln
   INNER JOIN kna1 ON vbak~kunnr = kna1~kunnr
-  INTO CORRESPONDING FIELDS OF TABLE @it_sales_order_data
-        FOR ALL ENTRIES IN @it_vbeln
-  WHERE vbak~vbeln = @it_vbeln-vbeln.
+  LEFT OUTER JOIN lips ON vbap~vbeln = lips~vgbel AND vbap~posnr = lips~vgpos
+  INNER JOIN likp ON lips~vbeln = likp~vbeln
+  FOR ALL ENTRIES IN @it_vbeln
+  WHERE vbak~vbeln = @it_vbeln-vbeln
+  INTO CORRESPONDING FIELDS OF TABLE @it_sales_order_data.
 
+      IF sy-subrc IS INITIAL.
 
-      MOVE-CORRESPONDING it_change_data TO it_output.
+        MOVE-CORRESPONDING it_change_data TO it_output.
+        LOOP AT it_output ASSIGNING FIELD-SYMBOL(<lfs_output>).
+          IF <lfs_output> IS ASSIGNED.
+            READ TABLE it_sales_order_data INTO DATA(lw_sodata) WITH KEY vbak_vbeln = <lfs_output>-objectid.
+            IF sy-subrc IS INITIAL.
+              <lfs_output>-vbak_kunnr = lw_sodata-vbak_kunnr.
+              <lfs_output>-kna1_name1 = lw_sodata-kna1_name1.
+              <lfs_output>-vbap_werks = lw_sodata-vbap_werks.
+              <lfs_output>-vbap_matnr = lw_sodata-vbap_matnr.
+              <lfs_output>-likp_vbeln = lw_sodata-likp_vbeln.
+              <lfs_output>-lips_posnr = lw_sodata-lips_posnr.
+              <lfs_output>-lips_charg = lw_sodata-lips_charg.
+              <lfs_output>-lips_lfimg = lw_sodata-lips_lfimg.
+              <lfs_output>-lips_meins = lw_sodata-lips_meins.
+              <lfs_output>-likp_wadat_ist = lw_sodata-likp_wadat_ist.
+            ENDIF.
+          ENDIF.
+        ENDLOOP.
 * Generate ALV Grid instance using the factory method
-      TRY.
-          cl_salv_table=>factory(
-            IMPORTING
-              r_salv_table = lo_alv
-            CHANGING
-              t_table      = it_output ).
+        TRY.
+            cl_salv_table=>factory(
+              IMPORTING
+                r_salv_table = lo_alv
+              CHANGING
+                t_table      = it_output ).
 
 * Activate ALV Functions
-          lo_functions = lo_alv->get_functions( ).
-          lo_functions->set_all( abap_true ).
+            lo_functions = lo_alv->get_functions( ).
+            lo_functions->set_all( abap_true ).
 
 * Display ALV Grid
-          lo_alv->display( ).
+            lo_alv->display( ).
 
-        CATCH cx_salv_msg INTO DATA(lx_msg).
-          MESSAGE lx_msg TYPE 'I'.
-      ENDTRY.
-
+          CATCH cx_salv_msg INTO DATA(lx_msg).
+            MESSAGE lx_msg TYPE 'I'.
+        ENDTRY.
+      ENDIF.
     ENDIF.
   ENDIF.
