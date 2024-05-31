@@ -6,6 +6,17 @@
 REPORT zso_audit.
 TABLES: vbak,cdhdr,cdpos,agr_users,vbap,likp,lips,kna1.
 
+TYPES: BEGIN OF ty_s_range,
+         fname TYPE cdpos-fname,
+       END OF ty_s_range,
+       tt_s_range TYPE RANGE OF cdpos-fname.
+
+DATA: it_fields TYPE TABLE OF ty_s_range,
+      wa_fields TYPE ty_s_range.
+
+DATA: lt_tvarv_fields TYPE tt_s_range,
+      wa_tvarv_fields LIKE LINE OF lt_tvarv_fields.
+
 TYPES: BEGIN OF ty_sales_order_data,
          vbak_vbeln     TYPE vbak-vbeln,
          vbak_kunnr     TYPE vbak-kunnr,
@@ -95,100 +106,229 @@ DATA: lo_alv       TYPE REF TO cl_salv_table,
 
 DATA: it_vbak TYPE TABLE OF vbak,
       wa_vbak TYPE vbak.
-
-SELECT-OPTIONS: so_udate FOR cdhdr-udate.
-PARAMETERS: p_role TYPE agr_define-agr_name DEFAULT 'ZM_ECC_US_SD:SALESORDER_PWI'.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  PARAMETERS: p_dis RADIOBUTTON GROUP act DEFAULT 'X',
+              p_upd RADIOBUTTON GROUP act,
+              p_del RADIOBUTTON GROUP act.
+  SELECT-OPTIONS: so_udate FOR cdhdr-udate.
+  "PARAMETERS: p_role TYPE agr_define-agr_name DEFAULT 'ZM_ECC_US_SD:SALESORDER_PWI'.
+SELECTION-SCREEN END OF BLOCK b1.
 
 START-OF-SELECTION.
+  IF p_dis EQ 'X'.
+    PERFORM display_data.
+  ELSEIF p_upd = 'X'.
+    PERFORM display_data.
+    "MODIFY zcustom_table FROM TABLE it_output.
+  ELSEIF p_del = 'X'.
+    "DELETE FROM ZTABLE.
+  ENDIF.
+*&---------------------------------------------------------------------*
+*& Form display_data
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM display_data .
+*fetch user role from TVARV Table
+  SELECT low
+    FROM tvarvc
+    UP TO 1 ROWS
+    INTO @DATA(lv_role)
+    WHERE name = 'MY_VARIABLE' AND type = 'P'.
+  ENDSELECT.
+
+  IF sy-subrc IS INITIAL.
+
 * Fetch users data from agr_users
-  SELECT uname
-    FROM agr_users
-    INTO TABLE it_user
-    WHERE agr_name = p_role.
-
-  IF sy-subrc = 0.
-
-    LOOP AT it_user INTO wa_user.
-      wa_user_range-sign = 'I'.
-      wa_user_range-option = 'EQ'.
-      wa_user_range-low = wa_user-uname.
-      APPEND wa_user_range TO it_user_range.
-    ENDLOOP.
-
-* Fetch data from Change tables
-    SELECT hdr~objectid hdr~changenr hdr~username hdr~udate hdr~utime hdr~tcode
-           pos~fname pos~value_old pos~unit_old pos~value_new pos~unit_new pos~tabkey
-      FROM cdhdr AS hdr
-      INNER JOIN cdpos AS pos ON hdr~changenr = pos~changenr
-      INTO TABLE it_change_data
-      WHERE hdr~udate IN so_udate
-      AND   hdr~username IN it_user_range
-      AND   hdr~tcode = 'VA02'
-      AND   pos~fname IN ( 'WMENG','CHARG' ).
+    SELECT uname
+      FROM agr_users
+      INTO TABLE it_user
+      WHERE agr_name = lv_role.
 
     IF sy-subrc = 0.
-*segregate the SO number
-      it_vbeln = VALUE #( FOR lw IN it_change_data ( vbeln = lw-objectid ) ).
-*Fetch the SO relevant data
-      SELECT vbak~vbeln AS vbak_vbeln,
-       vbak~kunnr AS vbak_kunnr,
-       vbap~posnr AS vbap_posnr,
-       vbap~matnr AS vbap_matnr,
-       vbap~werks AS vbap_werks,
-       kna1~name1 AS kna1_name1,
-       likp~vbeln AS likp_vbeln,
-       likp~wadat_ist AS likp_wadat_ist,
-       lips~posnr AS lips_posnr,
-       lips~charg AS lips_charg,
-       lips~lfimg AS lips_lfimg,
-       lips~meins AS lips_meins
-  FROM vbak
-  INNER JOIN vbap ON vbak~vbeln = vbap~vbeln
-  INNER JOIN kna1 ON vbak~kunnr = kna1~kunnr
-  LEFT OUTER JOIN lips ON vbap~vbeln = lips~vgbel AND vbap~posnr = lips~vgpos
-  INNER JOIN likp ON lips~vbeln = likp~vbeln
-  FOR ALL ENTRIES IN @it_vbeln
-  WHERE vbak~vbeln = @it_vbeln-vbeln
-  INTO CORRESPONDING FIELDS OF TABLE @it_sales_order_data.
+
+      LOOP AT it_user INTO wa_user.
+        wa_user_range-sign = 'I'.
+        wa_user_range-option = 'EQ'.
+        wa_user_range-low = wa_user-uname.
+        APPEND wa_user_range TO it_user_range.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+
+*fetch fields to consider from TVARV Table
+  SELECT sign, opti, low, high
+    FROM tvarvc
+    INTO TABLE @DATA(lt_fields)
+    WHERE name = 'MY_VARIABLE1' AND type = 'S'.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT lt_fields INTO DATA(wa_fields1).
+      wa_fields1-sign = 'I'.
+      wa_fields1-opti = 'EQ'.
+      wa_fields1-low = wa_fields1-low.
+      APPEND wa_fields1 TO lt_tvarv_fields.
+    ENDLOOP.
+  ENDIF.
+
+  IF it_user_range IS NOT INITIAL.
+* Fetch data from Change tables
+    SELECT objectid
+           changenr
+           username
+           udate
+           utime
+           tcode
+    FROM cdhdr
+    INTO CORRESPONDING FIELDS OF TABLE it_change_data
+    WHERE objectclas = 'VERKBELEG'
+    AND   username IN it_user_range
+    AND   udate IN so_udate
+    AND   tcode = 'VA02'.
+
+    IF sy-subrc IS INITIAL.
+      SELECT changenr,
+             fname,
+             value_old,
+             unit_old,
+             value_new,
+             unit_new,
+             tabkey
+      FROM cdpos
+      INTO TABLE @DATA(it_cdpos)
+      FOR ALL ENTRIES IN @it_change_data
+      WHERE changenr = @it_change_data-changenr
+      AND   fname IN @lt_tvarv_fields.
 
       IF sy-subrc IS INITIAL.
-
-        MOVE-CORRESPONDING it_change_data TO it_output.
-        LOOP AT it_output ASSIGNING FIELD-SYMBOL(<lfs_output>).
-          IF <lfs_output> IS ASSIGNED.
-            READ TABLE it_sales_order_data INTO DATA(lw_sodata) WITH KEY vbak_vbeln = <lfs_output>-objectid.
+        LOOP AT it_change_data ASSIGNING FIELD-SYMBOL(<lfs_change>).
+          IF <lfs_change> IS ASSIGNED.
+            READ TABLE it_cdpos INTO DATA(lw_cdpos) WITH KEY changenr = <lfs_change>-changenr.
             IF sy-subrc IS INITIAL.
-              <lfs_output>-vbak_kunnr = lw_sodata-vbak_kunnr.
-              <lfs_output>-kna1_name1 = lw_sodata-kna1_name1.
-              <lfs_output>-vbap_werks = lw_sodata-vbap_werks.
-              <lfs_output>-vbap_matnr = lw_sodata-vbap_matnr.
-              <lfs_output>-likp_vbeln = lw_sodata-likp_vbeln.
-              <lfs_output>-lips_posnr = lw_sodata-lips_posnr.
-              <lfs_output>-lips_charg = lw_sodata-lips_charg.
-              <lfs_output>-lips_lfimg = lw_sodata-lips_lfimg.
-              <lfs_output>-lips_meins = lw_sodata-lips_meins.
-              <lfs_output>-likp_wadat_ist = lw_sodata-likp_wadat_ist.
+              <lfs_change>-fname = lw_cdpos-fname.
+              <lfs_change>-value_old = lw_cdpos-value_old.
+              <lfs_change>-value_new = lw_cdpos-value_new.
+              <lfs_change>-unit_old = lw_cdpos-unit_old.
+              <lfs_change>-unit_new = lw_cdpos-unit_new.
+              <lfs_change>-tabkey = lw_cdpos-tabkey.
             ENDIF.
           ENDIF.
         ENDLOOP.
-* Generate ALV Grid instance using the factory method
-        TRY.
-            cl_salv_table=>factory(
-              IMPORTING
-                r_salv_table = lo_alv
-              CHANGING
-                t_table      = it_output ).
+      ENDIF.
+    ENDIF.
+  ELSE.
+* Fetch data from Change tables
+    SELECT objectid
+           changenr
+           username
+           udate
+           utime
+           tcode
+    FROM cdhdr
+    INTO CORRESPONDING FIELDS OF TABLE it_change_data
+    WHERE objectclas = 'VERKBELEG'
+    AND   udate IN so_udate
+    AND   tcode = 'VA02'.
 
-* Activate ALV Functions
-            lo_functions = lo_alv->get_functions( ).
-            lo_functions->set_all( abap_true ).
+    IF sy-subrc IS INITIAL.
+      SELECT changenr
+             fname
+             value_old
+             unit_old
+             value_new
+             unit_new
+             tabkey
+      FROM cdpos
+      INTO TABLE it_cdpos
+      FOR ALL ENTRIES IN it_change_data
+      WHERE changenr = it_change_data-changenr
+      AND fname IN lt_tvarv_fields.
 
-* Display ALV Grid
-            lo_alv->display( ).
-
-          CATCH cx_salv_msg INTO DATA(lx_msg).
-            MESSAGE lx_msg TYPE 'I'.
-        ENDTRY.
+      IF sy-subrc IS INITIAL.
+        LOOP AT it_change_data ASSIGNING FIELD-SYMBOL(<lfs_change1>).
+          IF <lfs_change1> IS ASSIGNED.
+            READ TABLE it_cdpos INTO lw_cdpos WITH KEY changenr = <lfs_change1>-changenr.
+            IF sy-subrc IS INITIAL.
+              <lfs_change1>-fname = lw_cdpos-fname.
+              <lfs_change1>-value_old = lw_cdpos-value_old.
+              <lfs_change1>-value_new = lw_cdpos-value_new.
+              <lfs_change1>-unit_old = lw_cdpos-unit_old.
+              <lfs_change1>-unit_new = lw_cdpos-unit_new.
+              <lfs_change1>-tabkey = lw_cdpos-tabkey.
+            ENDIF.
+          ENDIF.
+        ENDLOOP.
       ENDIF.
     ENDIF.
   ENDIF.
+
+
+  IF it_change_data IS NOT INITIAL.
+*segregate the SO number
+    it_vbeln = VALUE #( FOR lw IN it_change_data ( vbeln = lw-objectid ) ).
+*Fetch the SO relevant data
+    SELECT vbak~vbeln AS vbak_vbeln,
+     vbak~kunnr AS vbak_kunnr,
+     vbap~posnr AS vbap_posnr,
+     vbap~matnr AS vbap_matnr,
+     vbap~werks AS vbap_werks,
+     kna1~name1 AS kna1_name1,
+     likp~vbeln AS likp_vbeln,
+     likp~wadat_ist AS likp_wadat_ist,
+     lips~posnr AS lips_posnr,
+     lips~charg AS lips_charg,
+     lips~lfimg AS lips_lfimg,
+     lips~meins AS lips_meins
+FROM vbak
+INNER JOIN vbap ON vbak~vbeln = vbap~vbeln
+INNER JOIN kna1 ON vbak~kunnr = kna1~kunnr
+LEFT OUTER JOIN lips ON vbap~vbeln = lips~vgbel AND vbap~posnr = lips~vgpos
+INNER JOIN likp ON lips~vbeln = likp~vbeln
+FOR ALL ENTRIES IN @it_vbeln
+WHERE vbak~vbeln = @it_vbeln-vbeln
+INTO CORRESPONDING FIELDS OF TABLE @it_sales_order_data.
+
+    IF sy-subrc IS INITIAL.
+
+      MOVE-CORRESPONDING it_change_data TO it_output.
+      LOOP AT it_output ASSIGNING FIELD-SYMBOL(<lfs_output>).
+        IF <lfs_output> IS ASSIGNED.
+          READ TABLE it_sales_order_data INTO DATA(lw_sodata) WITH KEY vbak_vbeln = <lfs_output>-objectid.
+          IF sy-subrc IS INITIAL.
+            <lfs_output>-vbak_kunnr = lw_sodata-vbak_kunnr.
+            <lfs_output>-kna1_name1 = lw_sodata-kna1_name1.
+            <lfs_output>-vbap_werks = lw_sodata-vbap_werks.
+            <lfs_output>-vbap_matnr = lw_sodata-vbap_matnr.
+            <lfs_output>-likp_vbeln = lw_sodata-likp_vbeln.
+            <lfs_output>-lips_posnr = lw_sodata-lips_posnr.
+            <lfs_output>-lips_charg = lw_sodata-lips_charg.
+            <lfs_output>-lips_lfimg = lw_sodata-lips_lfimg.
+            <lfs_output>-lips_meins = lw_sodata-lips_meins.
+            <lfs_output>-likp_wadat_ist = lw_sodata-likp_wadat_ist.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+* Generate ALV Grid instance using the factory method
+      TRY.
+          cl_salv_table=>factory(
+            IMPORTING
+              r_salv_table = lo_alv
+            CHANGING
+              t_table      = it_output ).
+
+* Activate ALV Functions
+          lo_functions = lo_alv->get_functions( ).
+          lo_functions->set_all( abap_true ).
+
+* Display ALV Grid
+          lo_alv->display( ).
+
+        CATCH cx_salv_msg INTO DATA(lx_msg).
+          MESSAGE lx_msg TYPE 'I'.
+      ENDTRY.
+    ENDIF.
+  ENDIF.
+ENDFORM.
