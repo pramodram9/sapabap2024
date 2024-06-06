@@ -1,0 +1,149 @@
+FUNCTION ZBOM_FM.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IT_TAB1) TYPE  ZTT_TAB
+*"----------------------------------------------------------------------
+  " Function module implementation goes here
+
+  " Example loop through the importing table
+
+TYPES : BEGIN OF ty_tab,
+          matnr TYPE mara-matnr,
+          werks TYPE mast-werks,
+          stlan TYPE mast-stlan,
+          stlnr TYPE mast-stlnr,
+          stlal TYPE mast-stlal,
+        END OF ty_tab.
+
+TYPES : BEGIN OF ty_rout,
+          item_matnr TYPE mara-matnr,
+          plnnr      TYPE plnnr,
+        END OF ty_rout.
+
+DATA: it_tab  TYPE STANDARD TABLE OF ty_tab,
+      wa_tab  TYPE ty_tab,
+      gt_rout TYPE STANDARD TABLE OF ty_rout,
+      wa_rout TYPE ty_rout.
+
+TYPES : BEGIN OF ty_stb.
+          INCLUDE STRUCTURE stpox.
+TYPES: END OF ty_stb.
+
+DATA : it_stb         TYPE STANDARD TABLE OF ty_stb,
+       ls_bom_exp_hdr TYPE cscmat,
+       wa_stb         TYPE ty_stb,
+       fs_stb         TYPE ty_stb.
+
+TYPES : BEGIN OF ty_stb1,
+          matnr TYPE mara-matnr,
+          ojtxb TYPE ojtxp,
+          mtart TYPE mtart,
+          mnglg TYPE cs_e_mnglg,
+          meins TYPE meins,
+          idnrk TYPE matnr,
+          ojtxp TYPE ojtxp,
+        END OF ty_stb1.
+
+DATA : it_stb1    TYPE STANDARD TABLE OF ty_stb1,
+       wa_stb1    TYPE ty_stb1,
+       fs_stb1    TYPE ty_stb1,
+       gv_counter TYPE stlan.
+
+TYPES: BEGIN OF ty_final,
+         head_matnr TYPE mara-matnr,
+         ojtxb      TYPE ojtxp,
+         stlan      TYPE stlan,
+         mtart      TYPE mtart,
+         mnglg      TYPE cs_e_mnglg,
+         mnglg1     TYPE cs_e_mnglg,
+         meins      TYPE meins,
+         item_matnr TYPE matnr,
+         ojtxp      TYPE ojtxp,
+         plnnr      TYPE plnnr,
+       END OF ty_final.
+
+DATA : it_final TYPE STANDARD TABLE OF ty_final,
+       wa_final TYPE ty_final.
+*       it_final1 TYPE STANDARD TABLE OF ZBI_MATBOM,
+*       wa_final1 TYPE ZBI_MATBOM.
+
+LOOP AT it_tab1 INTO wa_tab.
+
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'PP01'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mtnrv                 = wa_tab-matnr
+        stlal                 = wa_tab-stlal
+        stlan                 = wa_tab-stlan
+        stpst                 = 0
+        svwvo                 = 'X'
+        werks                 = wa_tab-werks
+      TABLES
+        stb                   = it_stb
+*MATCAT = ls_bom_exp_hdr
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 7
+        conversion_error      = 8
+        OTHERS                = 9.
+
+    IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CLEAR: wa_stb1 , wa_stb.
+
+    LOOP AT it_stb INTO wa_stb.
+      wa_stb1-matnr = wa_tab-matnr.
+      wa_stb1-ojtxb = wa_stb-ojtxb.
+      wa_stb1-mtart = wa_stb-mtart.
+      wa_stb1-mnglg = wa_stb-mnglg.
+      wa_stb1-meins = wa_stb-meins.
+      wa_stb1-idnrk = wa_stb-idnrk.
+      wa_stb1-ojtxp = wa_stb-ojtxp.
+      APPEND wa_stb1 TO it_stb1.
+
+    ENDLOOP.
+
+  ENDLOOP.
+
+CLEAR fs_stb1.
+  IF it_stb1 IS NOT INITIAL.
+
+    gv_counter = gv_counter + 1.
+
+    LOOP AT it_stb1 INTO fs_stb1.
+      IF sy-subrc = 0.
+
+        wa_final-head_matnr = fs_stb1-matnr.
+        wa_final-ojtxb = fs_stb1-ojtxb.
+        wa_final-stlan = gv_counter.
+        wa_final-mtart = fs_stb1-mtart.
+        wa_final-mnglg = fs_stb1-mnglg.
+        wa_final-mnglg1 = fs_stb1-mnglg.
+        wa_final-meins = fs_stb1-meins.
+        wa_final-item_matnr = fs_stb1-idnrk.
+        wa_final-ojtxp = fs_stb1-ojtxp.
+        APPEND wa_final TO it_final.
+      ENDIF.
+
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR wa_final.
+
+  LOOP AT it_final INTO wa_final.
+    PERFORM recursive_bom .
+  ENDLOOP.
+
+  PERFORM fill_rout.
+
+ENDFUNCTION.
