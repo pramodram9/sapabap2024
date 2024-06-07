@@ -1,0 +1,66 @@
+FUNCTION-POOL ZBOM_FG.                      "MESSAGE-ID ..
+
+* INCLUDE LZBOM_FGD...                       " Local class definition
+
+DATA: lr_werks TYPE RANGE OF marc-werks,
+      wa_werks_range LIKE LINE OF lr_werks.
+
+TYPES : BEGIN OF ty_tab,
+          matnr TYPE mara-matnr,
+          werks TYPE mast-werks,
+          stlan TYPE mast-stlan,
+          stlnr TYPE mast-stlnr,
+          stlal TYPE mast-stlal,
+        END OF ty_tab.
+
+TYPES : BEGIN OF ty_rout,
+          item_matnr TYPE mara-matnr,
+          plnnr      TYPE plnnr,
+        END OF ty_rout.
+
+DATA: it_tab  TYPE STANDARD TABLE OF ty_tab,
+      wa_tab  TYPE ty_tab,
+      gt_rout TYPE STANDARD TABLE OF ty_rout,
+      wa_rout TYPE ty_rout.
+
+TYPES : BEGIN OF ty_stb.
+          INCLUDE STRUCTURE stpox.
+TYPES: END OF ty_stb.
+
+DATA : it_stb         TYPE STANDARD TABLE OF ty_stb,
+       ls_bom_exp_hdr TYPE cscmat,
+       wa_stb         TYPE ty_stb,
+       fs_stb         TYPE ty_stb.
+
+TYPES : BEGIN OF ty_stb1,
+          matnr TYPE mara-matnr,
+          ojtxb TYPE ojtxp,
+          mtart TYPE mtart,
+          mnglg TYPE cs_e_mnglg,
+          meins TYPE meins,
+          idnrk TYPE matnr,
+          ojtxp TYPE ojtxp,
+        END OF ty_stb1.
+
+DATA : it_stb1    TYPE STANDARD TABLE OF ty_stb1,
+       wa_stb1    TYPE ty_stb1,
+       fs_stb1    TYPE ty_stb1,
+       gv_counter TYPE stlan.
+
+TYPES: BEGIN OF ty_final,
+         head_matnr TYPE mara-matnr,
+         ojtxb      TYPE ojtxp,
+         stlan      TYPE stlan,
+         mtart      TYPE mtart,
+         mnglg      TYPE cs_e_mnglg,
+         mnglg1     TYPE cs_e_mnglg,
+         meins      TYPE meins,
+         item_matnr TYPE matnr,
+         ojtxp      TYPE ojtxp,
+         plnnr      TYPE plnnr,
+       END OF ty_final.
+
+DATA : it_final TYPE STANDARD TABLE OF ty_final,
+       wa_final TYPE ty_final.
+*       it_final1 TYPE STANDARD TABLE OF ZBI_MATBOM,
+*       wa_final1 TYPE ZBI_MATBOM.
