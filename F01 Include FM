@@ -1,0 +1,137 @@
+*----------------------------------------------------------------------*
+***INCLUDE LZBOM_FGF01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*& Form recursive_bom
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM recursive_bom .
+
+  CLEAR : it_tab, it_stb , it_stb1.
+  CLEAR : fs_stb,fs_stb1,wa_tab.
+  SELECT matnr werks stlan stlnr stlal FROM mast
+  INTO CORRESPONDING FIELDS OF TABLE it_tab
+  WHERE matnr = wa_final-item_matnr
+  AND WERKS IN lr_werks
+  AND stlan = '1'.
+
+  DATA(lv_qty) = wa_final-mnglg1.
+
+  LOOP AT it_tab INTO wa_tab.
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'PP01'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mtnrv                 = wa_tab-matnr
+        stlal                 = wa_tab-stlal
+        stlan                 = wa_tab-stlan
+        stpst                 = 0
+        svwvo                 = 'X'
+        werks                 = wa_tab-werks
+      TABLES
+        stb                   = it_stb
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 7
+        conversion_error      = 8
+        OTHERS                = 9.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CLEAR: wa_stb1, wa_stb.
+
+
+    LOOP AT it_stb INTO wa_stb.
+      wa_stb1-matnr = wa_tab-matnr.
+      wa_stb1-ojtxb = wa_stb-ojtxb.
+      wa_stb1-mtart = wa_stb-mtart.
+      wa_stb1-mnglg = wa_stb-mnglg.
+      wa_stb1-meins = wa_stb-meins.
+      wa_stb1-idnrk = wa_stb-idnrk.
+      wa_stb1-ojtxp = wa_stb-ojtxp.
+      APPEND wa_stb1 TO it_stb1.
+    ENDLOOP.
+
+    gv_counter = wa_final-stlan + 1.
+
+    LOOP AT it_stb1 INTO fs_stb1.
+      IF sy-subrc = 0.
+        wa_final-head_matnr = fs_stb1-matnr.
+        wa_final-ojtxb = fs_stb1-ojtxb.
+        wa_final-stlan = gv_counter.
+        wa_final-mtart = fs_stb1-mtart.
+        wa_final-mnglg = fs_stb1-mnglg.
+        wa_final-mnglg1 = fs_stb1-mnglg * lv_qty.
+        wa_final-meins = fs_stb1-meins.
+        wa_final-item_matnr = fs_stb1-idnrk.
+        wa_final-ojtxp = fs_stb1-ojtxp.
+        APPEND wa_final TO it_final.
+      ENDIF.
+    ENDLOOP.
+
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form fill_rout
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM fill_rout .
+
+  MOVE-CORRESPONDING it_final TO gt_rout.
+  DELETE  ADJACENT DUPLICATES FROM gt_rout COMPARING item_matnr.
+
+  SELECT
+    matnr,
+    plnnr
+    FROM mapl
+    INTO TABLE @DATA(lt_rout)
+    FOR ALL ENTRIES IN @gt_rout
+    WHERE matnr = @gt_rout-item_matnr.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT it_final ASSIGNING FIELD-SYMBOL(<lfs_final>).
+      IF <lfs_final> IS ASSIGNED.
+        READ TABLE lt_rout INTO wa_rout WITH KEY matnr = <lfs_final>-item_matnr.
+        IF sy-subrc IS INITIAL.
+          <lfs_final>-plnnr = wa_rout-plnnr.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+  PERFORM update_bom_data.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form update_bom_data
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM update_bom_data .
+*  CLEAR wa_final1.
+*  LOOP AT it_final INTO wa_final.
+*    MOVE-CORRESPONDING wa_final TO wa_final1.
+*    APPEND wa_final1 TO it_final1.
+*  ENDLOOP.
+*
+*  MODIFY  zbi_matbom FROM TABLE it_final1.
+*
+*  COMMIT WORK.
+ENDFORM.
