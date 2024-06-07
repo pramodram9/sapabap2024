@@ -14,6 +14,13 @@ TYPES : BEGIN OF ty_tab,
           stlal TYPE mast-stlal,
         END OF ty_tab.
 
+TYPES: BEGIN OF ty_werks,
+         werks TYPE marc-werks,
+       END OF ty_werks.
+
+DATA: lt_werks TYPE STANDARD TABLE OF ty_werks,
+      ls_werks TYPE ty_werks.
+
 TYPES : BEGIN OF ty_rout,
           item_matnr TYPE mara-matnr,
           plnnr      TYPE plnnr,
@@ -98,21 +105,27 @@ PARAMETERS:r_dis RADIOBUTTON GROUP a DEFAULT 'X', " Display
 
 START-OF-SELECTION.
 
+  IF s_werks IS NOT INITIAL.
+    LOOP AT s_werks ASSIGNING FIELD-SYMBOL(<lfs_werks>).
+      IF <lfs_werks> IS ASSIGNED.
+        ls_werks-werks = <lfs_werks>-low.
+        APPEND ls_werks TO lt_werks.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
   IF r_del IS NOT INITIAL.
     PERFORM delete_bom_data.
   ENDIF.
 
-
-
   IF r_dis IS NOT INITIAL.
-    PERFORM bom_header.
+    PERFORM bom_header1.
     PERFORM bom_child.
     PERFORM build_catalog.
     PERFORM display_output.
 
   ELSEIF r_upd IS NOT INITIAL.
     PERFORM bom_header.
-    "PERFORM update_bom_data.
   ENDIF.
 
 
@@ -130,24 +143,6 @@ FORM delete_bom_data .
 ENDFORM.      " DELETE_BOM_DATA
 
 *&---------------------------------------------------------------------*
-*&      Form  UPDATE_BOM_DATA
-*&---------------------------------------------------------------------*
-*       text
-*----------------------------------------------------------------------*
-
-FORM update_bom_data .
-*  CLEAR wa_final1.
-*  LOOP AT it_final INTO wa_final.
-*    MOVE-CORRESPONDING wa_final TO wa_final1.
-*    APPEND wa_final1 TO it_final1.
-*  ENDLOOP.
-*
-*  MODIFY  zbi_matbom FROM TABLE it_final1.
-*
-*  COMMIT WORK.
-ENDFORM.                    " UPDATE_BOM_DATA
-
-*&---------------------------------------------------------------------*
 *& Form BOM_HEADER
 *&---------------------------------------------------------------------*
 * text
@@ -156,7 +151,7 @@ ENDFORM.                    " UPDATE_BOM_DATA
 * <-- p2 text
 *----------------------------------------------------------------------*
 FORM bom_header .
-  data: lv_task type string.
+  DATA: lv_task TYPE string.
 
   SELECT matnr werks stlan stlnr stlal FROM mast
   INTO CORRESPONDING FIELDS OF TABLE it_tab
@@ -177,7 +172,8 @@ FORM bom_header .
       CONCATENATE sy-uname '_' sy-uzeit INTO lv_task.
       CALL FUNCTION 'ZBOM_FM' STARTING NEW TASK lv_task
         EXPORTING
-          it_tab1 = it_batch.
+          it_tab1 = it_batch
+          i_werks = lt_werks.
 
       " Clear the current batch for the next iteration
       CLEAR it_batch.
@@ -187,61 +183,11 @@ FORM bom_header .
   IF NOT it_batch IS INITIAL.
     " Call the function module to process the last batch
     CONCATENATE sy-uname '_' sy-uzeit INTO lv_task.
-      CALL FUNCTION 'ZBOM_FM' STARTING NEW TASK lv_task
-        EXPORTING
-          it_tab1 = it_batch.
+    CALL FUNCTION 'ZBOM_FM' STARTING NEW TASK lv_task
+      EXPORTING
+        it_tab1 = it_batch
+        i_werks = lt_werks.
   ENDIF.
-
-
-
-
-
-*  LOOP AT it_tab INTO wa_tab.
-*
-*    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
-*      EXPORTING
-*        capid                 = 'PP01'
-*        datuv                 = sy-datum
-*        mktls                 = 'X'
-*        mtnrv                 = wa_tab-matnr
-*        stlal                 = wa_tab-stlal
-*        stlan                 = wa_tab-stlan
-*        stpst                 = 0
-*        svwvo                 = 'X'
-*        werks                 = wa_tab-werks
-*      TABLES
-*        stb                   = it_stb
-**MATCAT = ls_bom_exp_hdr
-*      EXCEPTIONS
-*        alt_not_found         = 1
-*        call_invalid          = 2
-*        material_not_found    = 3
-*        missing_authorization = 4
-*        no_bom_found          = 5
-*        no_plant_data         = 6
-*        no_suitable_bom_found = 7
-*        conversion_error      = 8
-*        OTHERS                = 9.
-*
-*    IF sy-subrc <> 0.
-*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
-*    ENDIF.
-*    CLEAR: wa_stb1 , wa_stb.
-*
-*    LOOP AT it_stb INTO wa_stb.
-*      wa_stb1-matnr = wa_tab-matnr.
-*      wa_stb1-ojtxb = wa_stb-ojtxb.
-*      wa_stb1-mtart = wa_stb-mtart.
-*      wa_stb1-mnglg = wa_stb-mnglg.
-*      wa_stb1-meins = wa_stb-meins.
-*      wa_stb1-idnrk = wa_stb-idnrk.
-*      wa_stb1-ojtxp = wa_stb-ojtxp.
-*      APPEND wa_stb1 TO it_stb1.
-*
-*    ENDLOOP.
-*
-*  ENDLOOP.
 
 ENDFORM. " BOM_HEADER
 *&---------------------------------------------------------------------*
@@ -491,4 +437,64 @@ FORM fill_rout .
     ENDLOOP.
   ENDIF.
 
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form bom_header1
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM bom_header1 .
+  SELECT matnr werks stlan stlnr stlal FROM mast
+    INTO CORRESPONDING FIELDS OF TABLE it_tab
+    WHERE matnr IN s_matnr AND
+    werks IN s_werks AND
+    stlan = p_stlan.
+
+  CLEAR wa_tab.
+  LOOP AT it_tab INTO wa_tab.
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'PP01'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mtnrv                 = wa_tab-matnr
+        stlal                 = wa_tab-stlal
+        stlan                 = wa_tab-stlan
+        stpst                 = 0
+        svwvo                 = 'X'
+        werks                 = wa_tab-werks
+      TABLES
+        stb                   = it_stb
+*MATCAT = ls_bom_exp_hdr
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 7
+        conversion_error      = 8
+        OTHERS                = 9.
+
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CLEAR: wa_stb1 , wa_stb.
+
+    LOOP AT it_stb INTO wa_stb.
+      wa_stb1-matnr = wa_tab-matnr.
+      wa_stb1-ojtxb = wa_stb-ojtxb.
+      wa_stb1-mtart = wa_stb-mtart.
+      wa_stb1-mnglg = wa_stb-mnglg.
+      wa_stb1-meins = wa_stb-meins.
+      wa_stb1-idnrk = wa_stb-idnrk.
+      wa_stb1-ojtxp = wa_stb-ojtxp.
+      APPEND wa_stb1 TO it_stb1.
+    ENDLOOP.
+  ENDLOOP.
 ENDFORM.
