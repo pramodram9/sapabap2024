@@ -1,0 +1,40 @@
+          ENDIF.
+
+          WAIT UNTIL gv_sent EQ gv_receive UP TO 60 SECONDS.
+        ENDIF.
+      ENDWHILE.
+
+      IF lv_free GT lv_max.
+        ctr = lv_max.
+      ELSE.
+        ctr = lv_free.
+      ENDIF.
+
+    ENDIF.
+
+ free:imarc_temp.
+
+ lv_low = lv_high + 1.
+ if lv_low gt lv_lin.
+   exit.
+ endif.
+ lv_high = lv_low + lv_blk + 1.
+ if lv_high gt lv_lin.
+   lv_high = lv_lin.
+ endif.
+
+
+endwhile.
+
+FORM get_bom USING gv_time.
+
+  gv_receive = gv_receive + 1.
+  gv_job = gv_sent - gv_receive.
+
+  RECEIVE RESULTS FROM FUNCTION 'Z_RFC_BOM_EXPLOSION'
+  TABLES it_out = ibom_temp.
+  IF sy-subrc EQ  0.
+    APPEND LINES OF ibom_temp TO ibom.
+    FREE ibom.
+  ENDIF.
+ENDFORM.
