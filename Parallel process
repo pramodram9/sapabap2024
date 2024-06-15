@@ -1,3 +1,117 @@
+
+*&---------------------------------------------------------------------*
+*& Report YDW_EXPLOSION
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT YDW_EXPLOSION.
+tables: marc.
+types: BEGIN OF T_MARC,
+        MATNR TYPE MARC-MATNR,
+        WERKS TYPE MARC-WERKS,
+      END OF T_MARC.
+select-options: s_werks for marc-werks.
+parameters:
+           p_blk type i default 2000 ,
+           p_rfcgrp TYPE bdfields-rfcgr.
+data: imarc type table of t_marc,
+      imarc_temp type table of t_marc,
+      ibom_temp type table of STPOX,
+      ibom type table of STPOX,
+      lv_low type i , lv_high type i , lv_lin type i , lv_blk type  i,
+      lv_flag type c , lv_free type i , lv_max type i ,ctr type i,
+      gv_job_index TYPE string,
+      gv_time      TYPE string,
+      gv_sent      TYPE i,
+      gv_job       TYPE i,
+      gv_receive   TYPE i  .
+
+select matnr , werks from marc into table @imarc where werks in @s_werks.
+describe table imarc lines lv_lin.
+lv_blk = p_blk.
+lv_low = 1.
+lv_high = lv_low + lv_blk.
+if lv_high > lv_lin.
+lv_high = lv_lin.
+endif.
+  lv_flag = 'X'.
+
+  WHILE lv_flag = 'X'.
+    CALL FUNCTION 'SPBT_INITIALIZE'
+      EXPORTING
+        group_name                     = p_rfcgrp
+      IMPORTING
+        max_pbt_wps                    = lv_max
+        free_pbt_wps                   = lv_free
+      EXCEPTIONS
+        invalid_group_name             = 1
+        internal_error                 = 2
+        pbt_env_already_initialized    = 3
+        currently_no_resources_avail   = 4
+        no_pbt_resources_found         = 5
+        cant_init_different_pbt_groups = 6
+        OTHERS                         = 7.
+    IF sy-subrc <> 0.
+      lv_flag = 'Y'.
+      lv_max = 3.
+    ELSE.
+      lv_free = lv_free.
+      lv_max = lv_max / 2.
+      IF lv_free GT  lv_max.
+        lv_flag = 'Y'.
+      ELSEIF lv_free GE lv_max * 2 / 3.
+        lv_flag = 'Y'.
+      ELSE.
+        lv_max = ( lv_max * 2 ) - 10.
+        IF lv_free  GE lv_max.
+          lv_flag = 'Y'.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    IF lv_flag = 'X'.
+      WAIT UP TO 3 SECONDS.
+    ENDIF.
+  ENDWHILE.
+
+  ctr = lv_max.
+while lv_high le lv_lin.
+append lines of imarc from lv_low to lv_high to imarc_temp.
+gv_sent = gv_sent + 1.
+ gv_job_index = gv_job_index + 1.
+ CONCATENATE 'BOM' gv_job_index INTO gv_time.
+ CALL FUNCTION 'Z_RFC_BOM_EXPLOSION' STARTING NEW TASK gv_time
+      DESTINATION IN GROUP p_rfcgrp
+      PERFORMING get_bom ON END OF TASK
+  TABLES
+    IT_IN         = imarc_temp.
+    gv_job = gv_sent - gv_receive.
+    IF  gv_job GE ctr.
+      lv_flag = 'X'.
+
+      WHILE lv_flag = 'X'.
+        CALL FUNCTION 'SPBT_GET_CURR_RESOURCE_INFO'
+          IMPORTING
+            max_pbt_wps                 = lv_max
+            free_pbt_wps                = lv_free
+          EXCEPTIONS
+            internal_error              = 1
+            pbt_env_not_initialized_yet = 2
+            OTHERS                      = 3.
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+        ELSE.
+          lv_free = lv_free.
+          lv_max = lv_max / 2.
+
+          IF lv_free GT lv_max.
+            lv_flag = 'Y'.
+*            ctr = gv_sent + lv_max.
+          ELSEIF lv_free  GT ( lv_max * 2 / 3 ) .
+*            ctr  = gv_sent + ( lv_max * 2 / 3 ) .
+            lv_flag = 'Y'.
+            WAIT UP TO 30 SECONDS.
+*          else.
+*            ctr = gv_sent + lv_free.
           ENDIF.
 
           WAIT UNTIL gv_sent EQ gv_receive UP TO 60 SECONDS.
