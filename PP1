@@ -1,0 +1,40 @@
+ p_rfcgrp TYPE bdfields-rfcgr.
+
+      DO.
+
+* Initialize parallel processing environment
+        CALL FUNCTION 'SPBT_INITIALIZE'
+          EXPORTING
+            group_name        = p_rfcgrp
+          IMPORTING
+            max_pbt_wps       = lv_max
+            free_pbt_wps      = lv_free
+          EXCEPTIONS
+            cant_create_group = 1
+            cant_init_group   = 2
+            cant_start_group  = 3
+            OTHERS            = 4.
+
+        IF sy-subrc <> 0.
+          " Handle the error situation
+          CASE sy-subrc.
+            WHEN 1.
+              " Error: Can't create group
+            WHEN 2.
+              " Error: Can't initialize group
+            WHEN 3.
+              " Error: Can't start group
+            WHEN OTHERS.
+              " Other errors
+          ENDCASE.
+        ELSE.
+          " Server group initialized successfully
+          " lt_server_info contains information about the started servers
+
+          DATA(lv_buffer) = lv_max / 2.
+          IF lv_buffer > lv_free.
+          ELSE.
+            EXIT.
+          ENDIF.
+        ENDIF.
+      ENDDO.
