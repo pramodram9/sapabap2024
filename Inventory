@@ -1,0 +1,350 @@
+
+kumar erp <kumar.erpinfo@gmail.com>	Sun, Jun 30, 2024 at 10:12 AM
+To: Rampay Pramod <pramodram9@gmail.com>
+REPORT zpp0035f NO STANDARD PAGE HEADING.
+
+TABLES: mseg, ekbe,
+        mdub.                                               "D46K937129
+
+DATA: BEGIN OF i_marc OCCURS 0,
+        matnr TYPE marc-matnr,
+        werks TYPE marc-werks,
+        trame TYPE marc-trame,
+      END OF i_marc.
+
+DATA: BEGIN OF i_marc_export OCCURS 0.
+        INCLUDE STRUCTURE i_marc.
+DATA: END OF i_marc_export.
+
+DATA: BEGIN OF i_mseg OCCURS 0,
+         mblnr TYPE mseg-mblnr,
+         mjahr TYPE mseg-mjahr,
+         zeile TYPE mseg-zeile,
+         xauto TYPE mseg-xauto,
+         matnr TYPE mseg-matnr,
+         werks TYPE mseg-werks,
+         lgort TYPE mseg-lgort,                             "DEVK921287
+         charg TYPE mseg-charg,
+         erfmg TYPE mseg-erfmg,
+         erfme TYPE mseg-erfme,
+         meins TYPE mseg-meins,
+         lifnr TYPE mseg-lifnr,                             "DEVK921287
+         ebeln TYPE mseg-ebeln,
+         ebelp TYPE mseg-ebelp,
+      END OF i_mseg.
+
+DATA: BEGIN OF i_mseg_in OCCURS 0,                          "D46K937129
+         mblnr TYPE mseg-mblnr,                             "D46K937129
+         mjahr TYPE mseg-mjahr,                             "D46K937129
+         zeile TYPE mseg-zeile,                             "D46K937129
+         bwart TYPE mseg-bwart,                             "D46K937129
+         xauto TYPE mseg-xauto,                             "D46K937129
+         matnr TYPE mseg-matnr,                             "D46K937129
+         werks TYPE mseg-werks,                             "D46K937129
+         lgort TYPE mseg-lgort,                             "D46K937129
+         charg TYPE mseg-charg,                             "D46K937129
+         lifnr TYPE mseg-lifnr,                             "D46K937129
+         shkzg TYPE mseg-shkzg,                             "D46K937129
+         menge TYPE mseg-menge,                             "D46K937129
+         meins TYPE mseg-meins,                             "D46K937129
+         erfmg TYPE mseg-erfmg,                             "D46K937129
+         erfme TYPE mseg-erfme,                             "D46K937129
+         ebeln TYPE mseg-ebeln,                             "D46K937129
+         ebelp TYPE mseg-ebelp,                             "D46K937129
+      END OF i_mseg_in.                                     "D46K937129
+
+DATA: BEGIN OF i_mseg_export OCCURS 0.
+        INCLUDE STRUCTURE i_mseg.
+DATA: END OF i_mseg_export.
+
+DATA: BEGIN OF i_ekbe OCCURS 0,
+        ebeln TYPE ekbe-ebeln,
+        ebelp TYPE ekbe-ebelp,
+        gjahr TYPE ekbe-gjahr,
+        belnr TYPE ekbe-belnr,
+        buzei TYPE ekbe-buzei,
+        bwart TYPE ekbe-bwart,                              "D60K961861
+        matnr TYPE ekbe-matnr,                              "D60K961861
+        werks TYPE ekbe-werks,                              "D60K961861
+        charg TYPE ekbe-charg,                              "D60K961861
+      END OF i_ekbe.
+
+DATA: BEGIN OF i_mdub OCCURS 0,                             "D46K937129
+        matnr TYPE mdub-matnr,                              "D46K937129
+        reswk TYPE mdub-reswk,                              "D46K937129
+        ebeln TYPE mdub-ebeln,                              "D46K937129
+        ebelp TYPE mdub-ebelp,                              "D46K937129
+        loekz TYPE mdub-loekz,                              "D46K937129
+        elikz TYPE mdub-elikz,                              "D46K937129
+        umrez TYPE mdub-umrez,                              "D46K937129
+        umren TYPE mdub-umren,                              "D46K937129
+        werks TYPE mdub-werks,                              "D46K937129
+        menge TYPE mdub-menge,                              "D46K937129
+        wamng TYPE mdub-wamng,                              "D46K937129
+        wemng TYPE mdub-wemng,                              "D46K937129
+      END OF i_mdub.                                        "D46K937129
+
+DATA:  lv_lgort  TYPE mseg-lgort,                           "D60K961861
+       factor    TYPE f,
+       c_erfme   TYPE mseg-erfme VALUE 'EA',
+       c_auto    TYPE mseg-xauto VALUE 'X',
+       h_tabix   TYPE sy-tabix,
+       i_mstb    TYPE TABLE OF mstb,                        "D60K961861
+       w_mstb    TYPE mstb,                                 "D60K961861
+       intransit TYPE mseg-erfmg.                           "D46K937129
+
+
+* ---------------------------------------------------------------------
+START-OF-SELECTION.
+* ---------------------------------------------------------------------
+
+  PERFORM get_intransit_new.                                "D46K937129
+  PERFORM export_table_i_mseg.
+
+*&---------------------------------------------------------------------*
+*&      Form  EXPORT_TABLE_I_MSEG
+*----------------------------------------------------------------------*
+FORM export_table_i_mseg.
+
+* Move the information from the internal table to the table being used
+* for exporting to memory.
+  i_mseg_export[] = i_mseg[].
+
+* Export the data to memory.
+  EXPORT i_mseg_export TO MEMORY ID '3'.                    "D60K900250
+
+
+ENDFORM.                               " EXPORT_TABLE_I_MSEG
+*&---------------------------------------------------------------------*
+*&      Form  get_intransit_new
+*&---------------------------------------------------------------------*
+
+FORM get_intransit_new.                                     "D46K937129
+
+  CLEAR:   i_mdub, i_ekbe, i_mseg_in, i_mseg.
+  REFRESH: i_mdub, i_ekbe, i_mseg_in, i_mseg.
+
+* Get the table from memory.
+*  IMPORT i_marc_export  FROM MEMORY ID 2.               "delD60K900250
+  IMPORT i_marc_export  FROM MEMORY ID '2'.                 "D60K900250
+
+* Move the data into an internal table used by this progam.
+  i_marc[] = i_marc_export[].
+* if run on its own i_marc is empty so fill it
+  IF i_marc[] IS INITIAL.
+    SELECT matnr werks trame
+           INTO TABLE i_marc
+           FROM marc
+           WHERE trame <> 0.
+  ENDIF.
+
+  SELECT matnr reswk ebeln ebelp loekz elikz
+         umrez umren werks menge wamng wemng
+         INTO TABLE i_mdub
+         FROM mdub
+         FOR ALL ENTRIES IN i_marc
+         WHERE matnr = i_marc-matnr AND
+               werks = i_marc-werks.
+
+* delete completed or deleted lines
+  DELETE i_mdub WHERE loekz = 'X' OR elikz = 'X'.
+
+  IF NOT i_mdub[] IS INITIAL.
+
+* begin change ----------------------------------------------D60K937401
+**** get the EKBE records that correspond to the MDUB records
+***    SELECT ebeln ebelp gjahr belnr buzei
+***           INTO TABLE i_ekbe
+***           FROM ekbe
+***           FOR ALL ENTRIES IN i_mdub
+***           WHERE ebeln = i_mdub-ebeln AND
+***                 ebelp = i_mdub-ebelp.
+
+    SELECT ekbe~ebeln ekbe~ebelp ekbe~gjahr ekbe~belnr ekbe~buzei
+           ekbe~bwart ekbe~matnr ekbe~werks ekbe~charg      "D60K961861
+           INTO TABLE i_ekbe
+           FROM ekbe
+           JOIN ekpo ON ekbe~ebeln = ekpo~ebeln AND
+                        ekbe~ebelp = ekpo~ebelp
+           FOR ALL ENTRIES IN i_mdub
+           WHERE ekbe~ebeln = i_mdub-ebeln AND
+                 ekbe~ebelp = i_mdub-ebelp AND
+                 ekpo~lfret <> 'NLCC'.
+    SORT i_ekbe BY ebeln ebelp.
+* end   change ----------------------------------------------D60K937401
+
+    IF NOT i_ekbe[] IS INITIAL.
+* get the MSEG records that correspond to the EKBE records
+      SELECT mblnr mjahr zeile bwart xauto matnr werks lgort
+             charg lifnr shkzg menge meins erfmg erfme ebeln ebelp
+             INTO TABLE i_mseg_in
+             FROM mseg
+             FOR ALL ENTRIES IN i_ekbe
+             WHERE mblnr = i_ekbe-belnr AND
+                   mjahr = i_ekbe-gjahr AND
+                   zeile = i_ekbe-buzei.
+
+      DELETE i_mseg_in WHERE xauto = 'X'.
+
+      SORT i_ekbe BY ebeln ebelp.
+      SORT i_mseg_in BY mblnr mjahr zeile matnr.
+      LOOP AT i_mdub.
+* if scheduled quantity = quantity delivered then skip this record
+        IF i_mdub-menge = i_mdub-wemng.
+          CONTINUE.
+        ENDIF.
+
+        CLEAR: intransit,
+               i_mseg.
+* get the PO records for the intransit records
+        READ TABLE i_ekbe WITH KEY ebeln = i_mdub-ebeln
+                                   ebelp = i_mdub-ebelp
+                                   BINARY SEARCH.
+        LOOP AT i_ekbe FROM sy-tabix.
+          IF i_ekbe-ebeln <> i_mdub-ebeln OR
+             i_ekbe-ebelp <> i_mdub-ebelp.
+            EXIT.
+          ENDIF.
+* Get the material documents for the POs
+          READ TABLE i_mseg_in WITH KEY mblnr = i_ekbe-belnr
+                                        mjahr = i_ekbe-gjahr
+                                        zeile = i_ekbe-buzei
+                                    BINARY SEARCH.
+          LOOP AT i_mseg_in FROM sy-tabix.
+            IF i_mseg_in-mblnr <> i_ekbe-belnr OR
+               i_mseg_in-mjahr <> i_ekbe-gjahr OR
+               i_mseg_in-zeile <> i_ekbe-buzei.
+              EXIT.
+            ENDIF.
+            i_mseg-matnr = i_mseg_in-matnr.
+            i_mseg-charg = i_mseg_in-charg.
+            i_mseg-lgort = i_mseg_in-lgort.
+            i_mseg-lifnr = i_mseg_in-lifnr.
+            i_mseg-ebeln = i_mseg_in-ebeln.
+            i_mseg-ebeln = i_mseg_in-ebeln.
+* only process current material's records
+            IF i_mseg_in-matnr = i_mdub-matnr.
+* reverse quantity for debits
+              IF i_mseg_in-shkzg = 'S'.
+                MULTIPLY i_mseg_in-menge BY -1.
+              ENDIF.
+* accumulate instranist quantity
+              ADD i_mseg_in-menge TO intransit.
+            ENDIF.
+          ENDLOOP.
+        ENDLOOP.
+
+        IF intransit > 0.
+* move the fields needed to export
+          i_mseg-erfmg = intransit.
+          i_mseg-werks = i_mdub-werks.
+          APPEND i_mseg.
+        ENDIF.
+
+      ENDLOOP.
+    ENDIF.   " i_ekbe
+  ENDIF.     " i_mdub
+
+* begin insert --------------------------------------------- D60K961861
+
+  SELECT matnr werks bwesb
+    INTO TABLE i_marc
+    FROM marc.
+  DELETE i_marc WHERE trame IS INITIAL.
+
+  IF i_marc[] IS NOT INITIAL.
+    SELECT * INTO TABLE i_mstb
+      FROM mstb
+      FOR ALL ENTRIES IN i_marc
+      WHERE matnr = i_marc-matnr AND
+            werks = i_marc-werks.
+
+    IF i_mstb[] IS NOT INITIAL.
+
+      SELECT ekbe~ebeln ekbe~ebelp ekbe~gjahr ekbe~belnr ekbe~buzei
+             ekbe~bwart ekbe~matnr ekbe~werks ekbe~charg
+                   INTO TABLE i_ekbe
+                   FROM ekbe
+                   JOIN ekpo ON ekbe~ebeln = ekpo~ebeln AND
+                                ekbe~ebelp = ekpo~ebelp
+                   FOR ALL ENTRIES IN i_mstb
+                   WHERE ekbe~matnr = i_mstb-matnr AND
+                         ekbe~werks = i_mstb-werks AND
+                         ekbe~charg = i_mstb-charg AND
+                         ekpo~lfret <> 'NLCC'.
+      DELETE i_ekbe WHERE bwart <> '107' AND
+                          bwart <> '109'.
+      SORT i_ekbe BY matnr werks charg.
+
+      IF NOT i_ekbe[] IS INITIAL.
+
+* get the MSEG records that correspond to the EKBE records
+        SELECT mblnr mjahr zeile bwart xauto matnr werks lgort
+               charg lifnr shkzg menge meins erfmg erfme ebeln ebelp
+               INTO TABLE i_mseg_in
+               FROM mseg
+               FOR ALL ENTRIES IN i_ekbe
+               WHERE mblnr = i_ekbe-belnr AND
+                     mjahr = i_ekbe-gjahr AND
+                     zeile = i_ekbe-buzei.
+
+        DELETE i_mseg_in WHERE xauto = 'X'.
+        DELETE i_mseg_in WHERE bwart <> '107' AND
+                               bwart <> '109'.
+
+        SORT i_ekbe BY matnr werks charg.
+        SORT i_mseg_in BY mblnr mjahr zeile matnr.
+        LOOP AT i_mstb INTO w_mstb.
+
+          CLEAR: intransit,
+                 i_mseg.
+* get the PO records for the intransit records
+          READ TABLE i_ekbe WITH KEY matnr = w_mstb-matnr
+                                     werks = w_mstb-werks
+                                     charg = w_mstb-charg
+                            BINARY SEARCH.
+          IF sy-subrc IS INITIAL.
+* Get the material documents for the POs
+            READ TABLE i_mseg_in WITH KEY mblnr = i_ekbe-belnr
+                                          mjahr = i_ekbe-gjahr
+                                          zeile = i_ekbe-buzei
+                                      BINARY SEARCH.
+            IF sy-subrc IS INITIAL.
+              i_mseg-matnr = i_mseg_in-matnr.
+              i_mseg-charg = i_mseg_in-charg.
+              i_mseg-lifnr = i_mseg_in-lifnr.
+              i_mseg-ebeln = i_mseg_in-ebeln.
+              i_mseg-ebeln = i_mseg_in-ebeln.
+* only process current material's records
+              IF i_mseg_in-matnr = w_mstb-matnr.
+* accumulate instranist quantity
+                ADD w_mstb-cwesb TO intransit.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+
+          IF intransit > 0.
+            CLEAR: lv_lgort.
+            SELECT SINGLE field_low
+              INTO lv_lgort
+              FROM zmd_constant
+              WHERE zprogram    = 'ZPP0035F' AND
+                    zsubroutine = 'READ_ZMD_CONSTANT' AND
+                    zstatement  = 'LGORT'.
+
+* move the fields needed to export
+            i_mseg-erfmg = intransit.
+            i_mseg-werks = w_mstb-werks.
+            i_mseg-lgort = lv_lgort.
+            APPEND i_mseg.
+          ENDIF.
+
+        ENDLOOP.
+      ENDIF.   " i_ekbe
+    ENDIF.     " i_mstb
+  ENDIF.       " i_marc
+* end   insert --------------------------------------------- D60K961861
+
+  SORT i_mseg BY matnr.                                     "D60K937401
+
+ENDFORM.                    " get_intransit_new
