@@ -1,0 +1,1479 @@
+
+kumar erp <kumar.erpinfo@gmail.com>	Sun, Jun 30, 2024 at 10:14 AM
+To: Rampay Pramod <pramodram9@gmail.com>
+REPORT zpp0035d.
+
+**** Data Statements.
+TABLES: mchb,
+        cabn,
+        ausp,
+   zmchb_rev,
+        inob,
+        mbew,
+        mslb,
+     zlblcod,
+        mara,
+        marc,
+        mard,
+        aeoi,
+        mch1,
+        chvw, t134g, zmd_constant.                          "D46K932242
+
+**** Internal tables
+
+DATA: BEGIN OF i_mchb_rev OCCURS 0.
+        INCLUDE STRUCTURE zmchb_rev.
+DATA: END OF i_mchb_rev.
+
+DATA: BEGIN OF i_mchb OCCURS 0,
+        matnr LIKE mchb-matnr,
+        werks LIKE mchb-werks,
+        lgort LIKE mchb-lgort,                              "DEVK921287
+        charg LIKE mchb-charg,
+        clabs LIKE mchb-clabs,
+        cumlm LIKE mchb-cumlm,
+        cinsm LIKE mchb-cinsm,
+        ceinm LIKE mchb-ceinm,
+        cspem LIKE mchb-cspem,
+        lifnr LIKE mslb-lifnr,                              "DEVK921287
+        vfdat LIKE mch1-vfdat,
+        revision LIKE zmchb_rev-revision,
+        cost LIKE zmchb_rev-cost,
+        packaging_option LIKE zmchb_rev-pack_opt,
+        formula_id LIKE zmchb_rev-form_id,
+        cust_label LIKE zmchb_rev-cust_label,
+        label_desc LIKE zmchb_rev-label_desc,
+        size_code LIKE zmchb_rev-size_code,
+        change_number LIKE aeoi-aennr,
+        batch_sts LIKE zmchb_rev-batch_sts,
+        load_date LIKE zmchb_rev-load_date,
+        manage LIKE marc-xchar,
+        status LIKE marc-mmsta,
+        matnrgroup LIKE mara-matkl,
+        baseum LIKE mara-meins,
+        atvendor LIKE zmchb_rev-atvendor,
+        busgrp LIKE zlblcod-bus_group, "DMM 4/27/1999
+        gsber  LIKE t134g-gsber,                            "DEVK938892
+        batch_usage    LIKE zmchb_rev-batch_usage,          "D46K936232
+        at_risk        LIKE zmchb_rev-at_risk,              "D46K936232
+        quality_status LIKE zmchb_rev-quality_status,       "D46K936232
+        disposition    LIKE zmchb_rev-disposition,          "D46K936232
+        zustd          TYPE mch1-zustd,                     "D60K906797
+        END OF i_mchb.
+
+DATA: BEGIN OF i_mchb2 OCCURS 0,
+       cust_label LIKE zmchb_rev-cust_label,
+       busgrp LIKE zlblcod-bus_group,  "DMM 4/27/1999
+       matnr LIKE mchb-matnr,
+       werks LIKE mchb-werks,
+       charg LIKE mchb-charg,
+       lgort LIKE mchb-lgort,                               "DEVK921287
+       lifnr LIKE mslb-lifnr,                               "DEVK921287
+       clabs LIKE mchb-clabs,
+       cumlm LIKE mchb-cumlm,
+       cinsm LIKE mchb-cinsm,
+       ceinm LIKE mchb-ceinm,
+       cspem LIKE mchb-cspem,
+       vfdat LIKE mch1-vfdat,
+       revision LIKE zmchb_rev-revision,
+       atvendor LIKE zmchb_rev-atvendor,
+       cost LIKE zmchb_rev-cost,
+       packaging_option LIKE zmchb_rev-pack_opt,
+       formula_id LIKE zmchb_rev-form_id,
+       label_desc LIKE zmchb_rev-label_desc,
+       size_code LIKE zmchb_rev-size_code,
+       objek LIKE inob-objek,
+       change_number LIKE aeoi-aennr,
+       batch_sts LIKE zmchb_rev-batch_sts,
+       load_date LIKE zmchb_rev-load_date,
+       manage LIKE marc-xchar,
+       status LIKE marc-mmsta,
+       matnrgroup LIKE mara-matkl,
+       baseum LIKE mara-meins,
+       gsber  LIKE t134g-gsber,
+       batch_usage    LIKE zmchb_rev-batch_usage,           "D46K936232
+       at_risk        LIKE zmchb_rev-at_risk,               "D46K936232
+       quality_status LIKE zmchb_rev-quality_status,        "D46K936232
+       disposition    LIKE zmchb_rev-disposition,           "D46K936232
+       zustd  TYPE mch1-zustd,                              "D60K906797
+       END OF i_mchb2.
+
+DATA: BEGIN OF i_mseg_export OCCURS 0,                      "DEVK918890
+      mblnr LIKE mseg-mblnr,
+      mjahr LIKE mseg-mjahr,
+      zeile LIKE mseg-zeile,
+      xauto LIKE mseg-xauto,                                "DEVK918890
+      matnr LIKE mseg-matnr,                                "DEVK918890
+      werks LIKE mseg-werks,                                "DEVK918890
+      lgort LIKE mseg-lgort,                                "DEVK921287
+      charg LIKE mseg-charg,                                "DEVK918890
+      erfmg LIKE mseg-erfmg,                                "DEVK918890
+      erfme LIKE mseg-erfme,                                "DEVK918890
+      meins LIKE mseg-meins,                                "DEVK918890
+      lifnr LIKE mseg-lifnr,                                "DEVK921287
+      ebeln LIKE mseg-ebeln,                                "DEVK918890
+      ebelp LIKE mseg-ebelp,                                "DEVK918890
+      END OF i_mseg_export.                                 "DEVK918890
+DATA: i_matnr_charg TYPE zmatbat OCCURS 0 WITH HEADER LINE. "D46K936232
+
+DATA: BEGIN OF i_matnr OCCURS 0,                            "D46K925013
+      matnr TYPE mchb-matnr,                                "D46K925013
+      charg TYPE mchb-charg.                                "D46K925013
+DATA: END OF i_matnr.                                       "D46K925013
+
+DATA: BEGIN OF i_char_data OCCURS 0.                        "D46K925013
+        INCLUDE STRUCTURE zchardata.                        "D46K925013
+DATA: END OF i_char_data.                                   "D46K925013
+
+DATA: BEGIN OF i_chvw OCCURS 0,
+      werks LIKE chvw-werks,
+      matnr LIKE chvw-matnr,
+      charg LIKE chvw-charg,
+      ebeln LIKE chvw-ebeln,
+      ebelp LIKE chvw-ebelp,
+      END OF i_chvw.
+
+DATA: BEGIN OF i_mslb OCCURS 0,
+      matnr LIKE mslb-matnr,
+      werks LIKE mslb-werks,
+      charg LIKE mslb-charg,
+      sobkz LIKE mslb-sobkz,
+      lifnr LIKE mslb-lifnr,                                "DEVK921287
+      lblab LIKE mslb-lblab,
+      lbins LIKE mslb-lbins,
+      lbein LIKE mslb-lbein,                                "DEVK933435
+      END OF i_mslb.
+
+DATA: BEGIN OF i_marc OCCURS 0,
+      matnr LIKE marc-matnr,
+      werks LIKE marc-werks,
+      lvorm LIKE marc-lvorm,
+      xchar LIKE marc-xchar,
+      mmsta LIKE marc-mmsta,
+      trame LIKE marc-trame,
+      END OF i_marc.
+
+DATA: BEGIN OF i_marc_temp OCCURS 0.
+        INCLUDE STRUCTURE i_marc.
+DATA: END OF i_marc_temp.
+
+DATA: BEGIN OF i_marc_export OCCURS 0,                      "DEVK918890
+      matnr LIKE marc-matnr,                                "DEVK918890
+      werks LIKE marc-werks,                                "DEVK918890
+      trame LIKE marc-trame,                                "DEVK918890
+      END OF i_marc_export.                                 "DEVK918890
+
+DATA: BEGIN OF i_marcx OCCURS 0.
+        INCLUDE STRUCTURE i_marc.
+DATA: END OF i_marcx.
+
+DATA: BEGIN OF i_marcb OCCURS 0.
+        INCLUDE STRUCTURE i_marc.
+DATA: END OF i_marcb.
+
+DATA: BEGIN OF icabn OCCURS 0,
+      atinn LIKE cabn-atinn,
+      atnam LIKE cabn-atnam,
+      END OF icabn.
+
+DATA: BEGIN OF i_ausp OCCURS 0,
+      objek LIKE ausp-objek,
+      atinn LIKE ausp-atinn,
+      atzhl LIKE ausp-atzhl,
+      mafid LIKE ausp-mafid,
+      klart LIKE ausp-klart,
+      adzhl LIKE ausp-adzhl,
+      atwrt LIKE ausp-atwrt,
+      END OF i_ausp.
+
+DATA: BEGIN OF i_aeoi OCCURS 0,
+      aennr LIKE aeoi-aennr,
+      usobj LIKE ausp-objek,
+      revlv LIKE aeoi-revlv,
+      END OF i_aeoi.
+
+DATA: BEGIN OF i_aeoi1 OCCURS 0,
+      matnr LIKE mara-matnr,
+      revlv LIKE i_aeoi-revlv,
+      aennr LIKE i_aeoi-aennr,
+      END OF i_aeoi1.
+
+DATA: BEGIN OF i_cawn OCCURS 0.                             "D46K925013
+        INCLUDE STRUCTURE zcawndata.                        "D46K925013
+DATA: END OF i_cawn.                                        "D46K925013
+DATA: i_batch_chars TYPE zmatbatclass                       "D46K936232
+                OCCURS 0 WITH HEADER LINE.                  "D46K936232
+DATA: BEGIN OF i_sizecode OCCURS 0.
+        INCLUDE STRUCTURE zchardata.                        "D46K925013
+DATA: END OF i_sizecode.
+
+DATA: BEGIN OF i_custlbl OCCURS 0.
+        INCLUDE STRUCTURE zchardata.                        "D46K925013
+DATA: END OF i_custlbl.
+
+DATA: BEGIN OF i_packopt OCCURS 0.
+        INCLUDE STRUCTURE zchardata.                        "D46K925013
+DATA: END OF i_packopt.
+
+DATA: BEGIN OF i_formula OCCURS 0.
+        INCLUDE STRUCTURE zchardata.                        "D46K925013
+DATA: END OF i_formula.
+
+DATA: BEGIN OF i_revlvl OCCURS 0.
+        INCLUDE STRUCTURE i_ausp.
+DATA: END OF i_revlvl.
+
+DATA  BEGIN OF i_batch_value OCCURS 0.
+        INCLUDE STRUCTURE i_ausp.
+DATA  END   OF i_batch_value.
+
+DATA:  BEGIN OF i_inob OCCURS 0,
+       cuobj(50) TYPE c,               " might change length
+       objek LIKE inob-objek,
+       END   OF i_inob.
+
+DATA:  BEGIN OF i_mbew OCCURS 0,
+       matnr LIKE mbew-matnr,
+       werks LIKE mbew-bwkey,
+       stprs LIKE mbew-stprs,
+       peinh LIKE mbew-peinh,
+       END  OF i_mbew.
+
+DATA: BEGIN OF temp_hold OCCURS 0,
+      matnr LIKE mchb-matnr,
+      charg LIKE mchb-charg,
+      atwrt LIKE ausp-atwrt,
+      END   OF temp_hold.
+
+DATA: BEGIN OF temp_status OCCURS 0,
+      matnr LIKE mchb-matnr,
+      charg LIKE mchb-charg,
+      atwrt LIKE ausp-atwrt,
+      END   OF temp_status.
+
+DATA: BEGIN OF i_mard OCCURS 0,
+      matnr LIKE mard-matnr,
+      werks LIKE mard-werks,
+      lgort LIKE mard-lgort,                                "DEVK921287
+      labst LIKE mard-labst,
+      umlme LIKE mard-umlme,
+      insme LIKE mard-insme,
+      einme LIKE mard-einme,
+      speme LIKE mard-speme,
+      END OF i_mard.
+
+DATA: BEGIN OF  i_lbl OCCURS 0,
+      lbl LIKE zlblcod-code,
+      END OF i_lbl.
+
+DATA: BEGIN OF i_lblcod OCCURS 0,
+      code LIKE zlblcod-code,
+      group LIKE zlblcod-bus_group,    "DMM 4/27/1999
+      description LIKE zlblcod-descript,
+      END OF i_lblcod.
+
+DATA: BEGIN OF i_mch1 OCCURS 0,
+      matnr LIKE mch1-matnr,
+      charg LIKE mch1-charg,
+      vfdat LIKE mch1-vfdat,
+      zustd TYPE mch1-zustd,                                "D60K906797
+      END OF i_mch1.
+
+DATA: BEGIN OF i_matnr50 OCCURS 0,
+      matnr LIKE ausp-objek,
+      END OF i_matnr50.
+
+DATA: BEGIN OF i_matnr18 OCCURS 0,
+      matnr LIKE mara-matnr,
+      END OF i_matnr18.
+
+DATA: BEGIN OF i_matnr40 OCCURS 0,
+      matnr LIKE aeoi-usobj,
+      END OF i_matnr40.
+
+DATA: BEGIN OF i_objek50 OCCURS 0,
+      objek LIKE inob-objek,
+      END OF i_objek50.
+
+DATA: BEGIN OF i_objek40 OCCURS 0,
+      objek LIKE aeoi-objkt,
+      END OF i_objek40.
+
+DATA: BEGIN OF i_matnrwerks OCCURS 0,
+      matnr LIKE marc-matnr,
+      werks LIKE marc-werks,
+      END OF i_matnrwerks.
+
+DATA: BEGIN OF i_spec_proc_tab OCCURS 0,                    "DEVK923169
+      matnr LIKE marc-matnr,                                "DEVK923169
+      werks LIKE marc-werks,                                "DEVK923169
+      END OF i_spec_proc_tab.                               "DEVK923169
+
+DATA: BEGIN OF i_mara OCCURS 0,
+      matnr LIKE mara-matnr,
+      matkl LIKE mara-matkl,
+      meins LIKE mara-meins,
+      spart LIKE mara-spart,                                "DEVK938892
+      prdha LIKE mara-prdha,           "DMM 4/27/1999
+      END OF i_mara.
+
+DATA: BEGIN OF i_t134g OCCURS 0,                            "DEVK923169
+      werks LIKE t134g-werks,                               "DEVK923169
+      spart LIKE t134g-spart,                               "DEVK923169
+      gsber LIKE t134g-gsber,                               "DEVK923169
+      END OF i_t134g.                                       "DEVK923169
+
+**** end of internal tables
+
+DATA: packaging_option LIKE cabn-atinn,
+      pack_formula_id LIKE cabn-atinn,
+      cust_label LIKE cabn-atinn,
+      size_code LIKE cabn-atinn,
+      revision_level LIKE cabn-atinn,
+      batch_value LIKE cabn-atinn,
+      batch_usage LIKE cabn-atinn,                          "D46K936232
+      at_risk     LIKE cabn-atinn,                          "D46K936232
+      quality_status LIKE cabn-atinn,                       "D46K936232
+      disposition LIKE cabn-atinn,                          "D46K936232
+      first_rec LIKE sy-tabix,
+      last_rec LIKE sy-tabix,
+      c_bwtar LIKE mbew-bwtar,
+      c_lvorm LIKE marc-lvorm VALUE 'X',
+      c_status LIKE marc-mmsta VALUE 'D2',
+      c_aetyp LIKE aeoi-aetyp VALUE '41',
+      c_char LIKE marc-xchar VALUE 'X',
+      c_trame LIKE marc-trame VALUE '0',
+      c_size_code LIKE cabn-atnam
+                        VALUE 'SIZE_CODE_VALUES',
+      c_customer_label LIKE cabn-atnam
+                        VALUE 'CUSTOMER_LABEL_VALUE',
+      c_packaging_option LIKE cabn-atnam
+                        VALUE 'PACKAGING_OPTION',
+      c_packaging_formula LIKE cabn-atnam
+                        VALUE 'PACKAGING_FORMULA_ID_VALUE',
+      c_revision_level LIKE cabn-atnam
+                        VALUE 'REVISION_LEVEL_VALUE',
+      hold_tabix LIKE sy-tabix.        " DEVK921287
+************************************************************************
+*CONSTANTS
+************************************************************************
+CONSTANTS:         c_determine_owner(15) TYPE c             "D46K932242
+                       VALUE 'DETERMINE_OWNER'.             "D46K932242
+
+*************** Main Line **********************************************
+PERFORM build_characteristics.         "Build the characteristics.
+PERFORM build_batch_control_i_mchb.    "Capture batch controlled inv.
+PERFORM add_no_batch_control_i_mchb.   "Capture not batch controlled inv
+PERFORM remove_mtnrs_with_no_inventory."Build driver files.
+PERFORM build_internal_tables.         "Build AUSP internal tables.
+
+* Get ready the big loop is about to start.. First we will sort all of
+* tables to enhance performance by allowing us to do ready with key and
+* capture the record with a binary search, which is way faster than a se
+* quential read.
+SORT: i_mchb BY matnr werks lgort charg,
+      i_mara BY matnr,
+      i_marc BY matnr werks,
+      i_spec_proc_tab BY matnr.                             "DEVK923169
+
+* Now that we are all sorted lets start the loop with our inventory tbl.
+LOOP AT i_mchb.
+
+* save sy-tabix so that the update can be done using the index for perf.
+  hold_tabix = sy-tabix.                                    "DEVK921287
+
+* Makes sure that no residual data is being updated to the wrong record.
+  CLEAR: i_mchb-size_code,             " Clear the fields.
+         i_mchb-cust_label,
+         i_mchb-formula_id,
+         i_mchb-packaging_option,
+         i_mchb-status,
+         i_mchb-matnrgroup,
+         i_mchb-baseum,
+         i_mchb-batch_usage,                                "D46K936232
+         i_mchb-at_risk,                                    "D46K936232
+         i_mchb-quality_status,                             "D46K936232
+         i_mchb-disposition,                                "D46K936232
+         i_mchb-manage.             " devk927922
+
+* All these performs are actually reads with key and binary search.
+* It was easier to use perform. WHY you ask. Because I could keep track
+* of the code easier and I could make them self explanatory.
+
+  PERFORM: get_size_code,
+           get_customer_label,
+           get_pack_formula_id,
+           get_packaging_option,
+           get_batch_chars,                                 "D46K936232
+           get_expiration_date,
+           get_material_group_baseum,
+           get_material_status.
+
+* Now that you have all of the new info go ahead and modify the table.
+* You can't use index sy-tabix because of all of the reads sy-tabix no
+* longer equels the original.
+  MODIFY i_mchb INDEX hold_tabix.      " Update the internal TBL
+                                                            "DEVK921287
+ENDLOOP.
+* Were all done with this data and its time to reclaim this memory block
+FREE:  i_sizecode,
+       i_custlbl,
+       i_formula,
+       i_packopt,
+       i_batch_chars,                                       "D46K936232
+       i_mara,
+       i_marc.
+
+* These are performs that could not be performed in the previous.
+PERFORM: get_revision_levels,
+         fill_zmchb_rev,
+* We are all done, so let's unlock the table.
+         unlock_zmchb_rev.
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_CHARACTERISTICS
+*&---------------------------------------------------------------------*
+FORM build_characteristics.
+
+  SELECT atinn atnam INTO TABLE icabn
+          FROM cabn.
+  LOOP AT icabn.
+    CASE icabn-atnam.
+      WHEN c_size_code.
+        size_code = icabn-atinn.
+      WHEN c_customer_label.
+        cust_label = icabn-atinn.
+      WHEN c_packaging_option.
+        packaging_option = icabn-atinn.
+      WHEN c_packaging_formula.
+        pack_formula_id = icabn-atinn.
+      WHEN c_revision_level.
+        revision_level = icabn-atinn.
+    ENDCASE.
+  ENDLOOP.
+
+  FREE icabn.
+
+ENDFORM.                               " BUILD_CHARACTERISTICS
+*&---------------------------------------------------------------------*
+*&      Form  CLEAR_ZMCHB_REV
+*&---------------------------------------------------------------------*
+FORM clear_zmchb_rev.
+  DATA: dlt_matnr LIKE zmchb_rev-material VALUE '99999999999999999'.
+
+  DELETE FROM zmchb_rev WHERE material NE dlt_matnr.
+  COMMIT WORK.                                              "D46K914089
+ENDFORM.                               " CLEAR_ZMCHB_REV
+
+*&---------------------------------------------------------------------*
+*&      Form  LOCK_ZMCHB_REV
+*&---------------------------------------------------------------------*
+*       LOCK TABLE ZMCHB_REV - TO ALLOW UPDATING OF INFORMATION
+*----------------------------------------------------------------------*
+FORM lock_zmchb_rev.
+
+  CALL FUNCTION 'ENQUEUE_EZMCHB_REV'
+    EXPORTING
+      mode_zmchb_rev = 'E'
+      mandt          = sy-mandt
+    EXCEPTIONS
+      foreign_lock   = 1
+      system_failure = 2
+      OTHERS         = 3.
+
+ENDFORM.                               " LOCK_ZMCHB_REV
+
+*&---------------------------------------------------------------------*
+*&      Form  UNLOCK_ZMCHB_REV
+*&---------------------------------------------------------------------*
+*       UNLOCK THE TABLE ZMCHB_REV - ALL DONE WITH UPDATING
+*----------------------------------------------------------------------*
+FORM unlock_zmchb_rev.
+
+  CALL FUNCTION 'DEQUEUE_EZMCHB_REV'
+    EXPORTING
+      mode_zmchb_rev = 'E'
+      mandt          = sy-mandt
+    EXCEPTIONS
+      OTHERS         = 1.
+
+ENDFORM.                               " UNLOCK_ZMCHB_REV
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_REVISION_LEVELS
+*&---------------------------------------------------------------------*
+FORM get_revision_levels.
+
+* Created so the the key fields are used for the selection of ausp.
+  DATA: c_atzhl LIKE ausp-atzhl VALUE '999',
+        c_mafid LIKE ausp-mafid VALUE 'Z',
+        c_klart LIKE ausp-klart VALUE '999'.
+
+* We are after material/batch data which has to start from INOB.
+  REFRESH i_inob.
+* I_objek50 contains matnr/charg loaded into it.
+  SELECT cuobj objek INTO TABLE i_inob
+         FROM inob
+         FOR ALL ENTRIES IN i_objek50
+            WHERE objek EQ i_objek50-objek.
+* The previous selection provided us with a unique number in the field
+* cuobj which we can then capture characteristics related to matnr/charg
+* from AUSP.
+  SELECT objek atinn atzhl mafid klart adzhl atwrt
+               INTO TABLE i_revlvl
+               FROM ausp
+               FOR ALL ENTRIES IN i_inob
+         WHERE objek EQ i_inob-cuobj
+          AND atinn EQ revision_level
+          AND atzhl NE c_atzhl
+          AND mafid NE c_mafid
+          AND klart NE c_klart.
+* Sort the tables to allow us to read them with key and a binary search.
+  SORT i_inob BY cuobj.
+  SORT i_revlvl BY objek.
+
+* Now that we have all of the data we need to create a temporary table
+* which will allow us join back to the inventory table.
+  LOOP AT i_revlvl.
+    READ TABLE i_inob WITH KEY cuobj = i_revlvl-objek
+                                        BINARY SEARCH.
+    LOOP AT i_inob FROM sy-tabix.
+      IF i_inob-cuobj = i_revlvl-objek.
+        MOVE i_inob-objek+0(18) TO temp_hold-matnr.
+        MOVE i_inob-objek+18(10) TO temp_hold-charg.
+        MOVE i_revlvl-atwrt TO temp_hold-atwrt.
+        APPEND temp_hold.
+      ELSE.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+  ENDLOOP.
+
+* The previous step will allow us to load duplicates but this step will
+* take care of that.
+  SORT temp_hold BY matnr charg.
+  DELETE ADJACENT DUPLICATES FROM temp_hold COMPARING ALL FIELDS.
+
+* Were done with i_inob so let's reclaim the space.
+  FREE i_inob.
+* We need to go out and find the Engineering Change number.
+  PERFORM build_i_aeoi.
+  CLEAR hold_tabix.
+* Now we're going to load all of the data we have collected for the
+* MATNR/CHARG.
+  LOOP AT i_mchb.
+    hold_tabix = sy-tabix.
+
+* Let's clear it at every loop this way we won't pick up any residual in
+* formation.
+    CLEAR: i_mchb-revision,
+           temp_hold-atwrt,
+           i_mchb-batch_sts,
+           temp_status-atwrt,
+           i_mchb-change_number,
+           i_aeoi1-aennr.
+
+* Get the revision level.
+    READ TABLE temp_hold WITH KEY matnr = i_mchb-matnr
+                                  charg = i_mchb-charg
+                                          BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      i_mchb-revision = temp_hold-atwrt.
+    ENDIF.
+
+    READ TABLE i_aeoi1 WITH KEY matnr = i_mchb-matnr
+                                revlv = i_mchb-revision
+                                BINARY SEARCH.
+* Get the change number.
+    IF sy-subrc EQ 0.
+      i_mchb-change_number = i_aeoi1-aennr.
+    ENDIF.
+* Add all the changes to the table.
+    MODIFY i_mchb INDEX hold_tabix.
+
+  ENDLOOP.
+* Were done here let's reclaim the space.
+  FREE temp_hold.
+  FREE temp_status.
+  FREE i_aeoi1.
+ENDFORM.                               " GET_REVISION_LEVELS
+*&---------------------------------------------------------------------*
+*&      Form  GET_SIZE_CODE
+*&---------------------------------------------------------------------*
+FORM get_size_code.
+
+  READ TABLE i_sizecode WITH KEY matnr = i_mchb-matnr       "D46K925013
+                                        BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-size_code = i_sizecode-char_value.               "D46K925013
+  ENDIF.
+
+ENDFORM.                               " GET_SIZE_CODE
+*&---------------------------------------------------------------------*
+*&      Form  FILL_ZMCHB_REV
+*&---------------------------------------------------------------------*
+FORM fill_zmchb_rev.
+* Change the whole order of loading......
+  LOOP AT i_mchb.
+
+    i_mchb2-matnr              =   i_mchb-matnr.
+    i_mchb2-werks              =   i_mchb-werks.
+    i_mchb2-lgort              =   i_mchb-lgort.            "DEVK921287
+    i_mchb2-lifnr              =   i_mchb-lifnr.            "DEVK921287
+    i_mchb2-charg              =   i_mchb-charg.
+    i_mchb2-status             =   i_mchb-status.
+    i_mchb2-matnrgroup         =   i_mchb-matnrgroup.
+    i_mchb2-baseum             =   i_mchb-baseum.
+    i_mchb2-vfdat              =   i_mchb-vfdat.
+    i_mchb2-revision           =   i_mchb-revision.
+    i_mchb2-change_number      =   i_mchb-change_number.
+    i_mchb2-atvendor           =   i_mchb-atvendor.
+    i_mchb2-clabs              =   i_mchb-clabs.
+    i_mchb2-cumlm              =   i_mchb-cumlm.
+    i_mchb2-cinsm              =   i_mchb-cinsm.
+    i_mchb2-ceinm              =   i_mchb-ceinm.
+    i_mchb2-cspem              =   i_mchb-cspem.
+    i_mchb2-packaging_option   =   i_mchb-packaging_option.
+    i_mchb2-formula_id         =   i_mchb-formula_id.
+    i_mchb2-cust_label         =   i_mchb-cust_label.
+    i_mchb2-label_desc         =   i_mchb-label_desc.
+    i_mchb2-size_code          =   i_mchb-size_code.
+    CLEAR i_mchb2-batch_sts.                                "D46K925013
+    i_mchb2-load_date          =   sy-datum.
+    i_mchb2-manage             =   i_mchb-manage.
+    i_mchb2-busgrp             =   i_mchb-busgrp.       "DMM 4/27/1999
+    i_mchb2-gsber              =   i_mchb-gsber.            "DEVK938892
+    i_mchb2-batch_usage         =   i_mchb-batch_usage.     "D46K936232
+    i_mchb2-at_risk             =   i_mchb-at_risk.         "D46K936232
+    i_mchb2-quality_status      =   i_mchb-quality_status.  "D46K936232
+    i_mchb2-disposition         =   i_mchb-disposition.     "D46K936232
+    i_mchb2-zustd              =   i_mchb-zustd.            "D60K906797
+    COLLECT i_mchb2.
+* Build a temporary label file.
+    i_lbl-lbl   =  i_mchb-cust_label.                       "DEVK923169
+    APPEND i_lbl.
+
+  ENDLOOP.
+* We are done abusing i_mchb
+  FREE i_mchb.
+
+* Let's get the description for the label.
+  PERFORM get_label_description.
+
+* Resort the table and delete any duplicates?
+  SORT i_mchb_rev BY material plant lgort lifnr batch.
+  DELETE ADJACENT DUPLICATES FROM i_mchb_rev COMPARING
+                                       material plant lgort lifnr batch.
+
+* Almost forgot....For the accounting folks we will load the std cost
+  PERFORM get_cost.
+
+* Security... Just making sure there are no dupicate keys...for some
+* reason the program dumps when trying to load a duplicate key.'
+  SORT i_mchb_rev BY material plant lgort lifnr batch.
+  DELETE ADJACENT DUPLICATES FROM i_mchb_rev COMPARING
+                                       material plant lgort lifnr batch.
+
+* Lock the table.
+  PERFORM lock_zmchb_rev.
+* Perform an array delete of zmchb_rev.
+  PERFORM clear_zmchb_rev.
+* Now that there is no data left - Let's load the new data, with an
+* array insert.
+
+  INSERT zmchb_rev FROM TABLE i_mchb_rev.
+
+  COMMIT WORK.
+
+ENDFORM.                               " FILL_ZMCHB_REV
+*&---------------------------------------------------------------------*
+*&      Form  GET_PACKAGING_OPTION
+*&---------------------------------------------------------------------*
+FORM get_packaging_option.
+
+  READ TABLE i_packopt WITH KEY matnr = i_mchb-matnr        "D46K925013
+                                       BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-packaging_option = i_packopt-char_value.         "D46K925013
+  ENDIF.
+
+ENDFORM.                               " GET_PACKAGING_OPTION
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_CUSTOMER_LABEL
+*&---------------------------------------------------------------------*
+FORM get_customer_label.
+
+  READ TABLE i_custlbl WITH KEY matnr = i_mchb-matnr        "D46K925013
+                                       BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-cust_label = i_custlbl-char_value.               "D46K925013
+  ENDIF.
+
+ENDFORM.                               " GET_CUSTOMER_LABEL
+*&---------------------------------------------------------------------*
+*&      Form  GET_COST
+*&---------------------------------------------------------------------*
+FORM get_cost.
+* Grab the cost information.
+  SELECT matnr bwkey stprs peinh INTO TABLE i_mbew
+           FROM mbew
+           FOR ALL ENTRIES IN i_matnrwerks
+           WHERE matnr EQ i_matnrwerks-matnr
+             AND bwkey EQ i_matnrwerks-werks
+             AND bwtar = c_bwtar.
+
+* Sort and delete any duplicates.
+  SORT i_mbew BY matnr werks.
+  DELETE ADJACENT DUPLICATES FROM i_mbew COMPARING matnr werks.
+  CLEAR hold_tabix.
+
+* Load the Standard cost.
+  LOOP AT i_mbew.
+
+* Just to make sure all of the data is cleared out.
+    CLEAR i_mchb_rev.
+
+* Read the inventory table.
+    READ TABLE i_mchb_rev WITH KEY material = i_mbew-matnr
+                                      plant = i_mbew-werks
+                                             BINARY SEARCH.
+    IF sy-subrc = 0.
+
+* Loop at inventory table from the index.
+      LOOP AT i_mchb_rev FROM sy-tabix.
+        hold_tabix = sy-tabix.
+        IF i_mchb_rev-material = i_mbew-matnr
+       AND i_mchb_rev-plant = i_mbew-werks.
+
+* yes your right we divide the std cost by the units to get to an eachs
+* standard cost.
+          i_mchb_rev-cost = ( i_mbew-stprs / i_mbew-peinh ).
+          MODIFY i_mchb_rev INDEX hold_tabix.
+        ELSE.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDLOOP.
+* Were done with more tables, so let's reclaim more space.
+  FREE i_mbew.
+  FREE i_matnrwerks.
+
+ENDFORM.                               " GET_COST
+*&---------------------------------------------------------------------*
+*&      Form  GET_PACK_FORMULA_ID
+*&---------------------------------------------------------------------*
+FORM get_pack_formula_id.
+
+  READ TABLE i_formula WITH KEY matnr = i_mchb-matnr        "D46K925013
+                                                     BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-formula_id = i_formula-char_value.               "D46K925013
+  ENDIF.
+
+ENDFORM.                               " GET_PACK_FORMULA_ID
+*&---------------------------------------------------------------------*
+*&      Form  GET_LABEL_DESCRIPTION
+*&---------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+* dmm 4/27/1999 - Added the business group to logic of finding correct
+*                 label description in ZLBLCOD table.
+*----------------------------------------------------------------------*
+FORM get_label_description.
+
+* Get rid of any duplicates.
+  SORT i_lbl BY lbl.
+  DELETE ADJACENT DUPLICATES FROM i_lbl.
+
+  SELECT code bus_group descript INTO TABLE i_lblcod   "DMM 4/27/1999
+       FROM zlblcod
+        FOR ALL ENTRIES IN i_lbl
+         WHERE code = i_lbl-lbl.
+
+  SORT i_lblcod BY code group.         "DMM 4/27/1999
+* delete adjacent duplicates from i_lblcod comparing code. "DMM 4/27/99
+
+  SORT i_mchb2 BY cust_label busgrp DESCENDING.   "DMM 4/27/1999
+* load the data into i_mchb_rev.
+  LOOP AT i_mchb2.
+
+    CLEAR i_mchb_rev.
+
+    READ TABLE i_lblcod WITH KEY code = i_mchb2-cust_label
+                                group = i_mchb2-busgrp     "DMM 4/27/99
+                                        BINARY SEARCH.
+    IF sy-subrc <> 0.
+      i_lblcod-description = ' '.
+    ENDIF.
+
+
+    i_mchb_rev-mandt      =   sy-mandt.
+    i_mchb_rev-material   =   i_mchb2-matnr.
+    i_mchb_rev-plant      =   i_mchb2-werks.
+    i_mchb_rev-lgort      =   i_mchb2-lgort.
+    i_mchb_rev-lifnr      =   i_mchb2-lifnr.
+    i_mchb_rev-batch      =   i_mchb2-charg.
+    i_mchb_rev-status     =   i_mchb2-status.
+    i_mchb_rev-matnrgroup =   i_mchb2-matnrgroup.
+    i_mchb_rev-baseum     =   i_mchb2-baseum.
+    i_mchb_rev-exp_date   =   i_mchb2-vfdat.
+    i_mchb_rev-revision   =   i_mchb2-revision.
+    i_mchb_rev-change_num =   i_mchb2-change_number.
+    i_mchb_rev-atvendor   =   i_mchb2-atvendor.
+    i_mchb_rev-inventory  =   i_mchb2-clabs.
+    i_mchb_rev-transfer   =   i_mchb2-cumlm.
+    i_mchb_rev-qm_hold    =   i_mchb2-cinsm.
+    i_mchb_rev-restricted =   i_mchb2-ceinm.
+    i_mchb_rev-blocked    =   i_mchb2-cspem.
+    i_mchb_rev-cost       =   i_mchb2-cost.
+    i_mchb_rev-pack_opt   =   i_mchb2-packaging_option.
+    i_mchb_rev-form_id    =   i_mchb2-formula_id.
+    i_mchb_rev-cust_label =   i_mchb2-cust_label.
+    i_mchb_rev-label_desc =   i_lblcod-description.
+    i_mchb_rev-size_code  =   i_mchb2-size_code.
+    CLEAR i_mchb_rev-batch_sts.                             "D46K925013
+    i_mchb_rev-bus_grp    =   i_mchb2-busgrp.
+    i_mchb_rev-load_date  =   i_mchb2-load_date.
+    i_mchb_rev-managed    =   i_mchb2-manage.
+    i_mchb_rev-gsber      =   i_mchb2-gsber.                "DEVK938892
+    i_mchb_rev-batch_usage      =   i_mchb2-batch_usage.    "D46K936232
+    i_mchb_rev-at_risk          =   i_mchb2-at_risk.        "D46K936232
+    i_mchb_rev-quality_status   =   i_mchb2-quality_status. "D46K936232
+    i_mchb_rev-disposition      =   i_mchb2-disposition.    "D46K936232
+    i_mchb_rev-zustd      =   i_mchb2-zustd.                "D60K906797
+    APPEND i_mchb_rev.
+  ENDLOOP.
+* Not needed no more, so reclaim the space.
+  FREE i_mchb2.
+  FREE i_lblcod.
+
+ENDFORM.                               " GET_LABEL_DESCRIPTION
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_INTERNAL_TABLES
+*&---------------------------------------------------------------------*
+FORM build_internal_tables.
+
+* Build a driver table of material/batch combinations
+  LOOP AT i_mchb.                                           "D46K925013
+    i_matnr-matnr = i_mchb-matnr.                           "D46K925013
+    APPEND i_matnr.                                         "D46K925013
+    IF NOT i_mchb-charg IS INITIAL.                         "D46K936232
+      i_matnr_charg-matnr = i_mchb-matnr.                   "D46K936232
+      i_matnr_charg-charg = i_mchb-charg.                   "D46K936232
+      APPEND i_matnr_charg.                                 "D46K936232
+    ENDIF.
+  ENDLOOP.                                                  "D46K925013
+  IF NOT i_matnr[] IS INITIAL.                              "D46K925013
+    SORT i_matnr.                                           "D46K925013
+    DELETE ADJACENT DUPLICATES FROM i_matnr.                "D46K925013
+  ENDIF.                                                    "D46K925013
+* Build a table of all batch characteristics
+  IF NOT i_matnr_charg[] IS INITIAL.                        "D46K936232
+    SORT i_matnr_charg.                                     "D46K936232
+    DELETE ADJACENT DUPLICATES FROM i_matnr_charg.          "D46K936232
+    CALL FUNCTION 'Z_GET_MAT_BATCH_CLASS'                   "D46K936232
+      TABLES                                                "D46K936232
+        i_zmat_bat             =  i_matnr_charg             "D46K936232
+        o_zmatbatclass         =  i_batch_chars             "D46K936232
+      EXCEPTIONS                                            "D46K936232
+        no_input               = 1                          "D46K936232
+        not_found              = 2                          "D46K936232
+        too_much_input         = 3                          "D46K936232
+        OTHERS                 = 4.                         "D46K936232
+    IF NOT i_batch_chars[] IS INITIAL.                      "D46K936232
+      SORT i_batch_chars BY matnr charg.                    "D46K936232
+    ENDIF.                                                  "D46K936232
+  ENDIF.
+* Build a table of the size_code characteristic             "D46K925013
+  CALL FUNCTION 'Z_GET_CLASSIFICATION'                      "D46K925013
+    EXPORTING                                               "D46K925013
+      iatinn                         = size_code            "D46K925013
+    TABLES                                                  "D46K925013
+      material_batch                 = i_matnr              "D46K925013
+      char_data                      = i_sizecode           "D46K925013
+      cawn_data                      = i_cawn               "D46K925013
+    EXCEPTIONS
+      too_much_input                 = 3                    "D46K925013
+      OTHERS                         = 4.                   "D46K925013
+  IF NOT i_sizecode[] IS INITIAL.                           "D46K925013
+    SORT i_sizecode BY matnr.                               "D46K925013
+  ENDIF.                                                    "D46K925013
+* Build a table of the customer label characteristic
+  CALL FUNCTION 'Z_GET_CLASSIFICATION'                      "D46K925013
+    EXPORTING                                               "D46K925013
+      iatinn                         = cust_label           "D46K925013
+    TABLES                                                  "D46K925013
+      material_batch                 = i_matnr              "D46K925013
+      char_data                      = i_custlbl            "D46K925013
+      cawn_data                      = i_cawn               "D46K925013
+    EXCEPTIONS
+      too_much_input                 = 3                    "D46K925013
+      OTHERS                         = 4.                   "D46K925013
+
+  IF NOT i_custlbl[] IS INITIAL.                            "D46K925013
+    SORT i_custlbl BY matnr.                                "D46K925013
+  ENDIF.                                                    "D46K925013
+
+* Build a table of the formula characteristic
+  CALL FUNCTION 'Z_GET_CLASSIFICATION'                      "D46K925013
+  EXPORTING                                                 "D46K925013
+    iatinn                         = pack_formula_id        "D46K925013
+  TABLES                                                    "D46K925013
+    material_batch                 = i_matnr                "D46K925013
+    char_data                      = i_formula              "D46K925013
+     cawn_data                      = i_cawn                "D46K925013
+  EXCEPTIONS
+   too_much_input                 = 3                       "D46K925013
+   OTHERS                         = 4.                      "D46K925013
+  IF NOT i_formula[] IS INITIAL.                            "D46K925013
+    SORT i_formula BY matnr.                                "D46K925013
+  ENDIF.                                                    "D46K925013
+* Build a table of the packaging option characteristic
+  CALL FUNCTION 'Z_GET_CLASSIFICATION'                      "D46K925013
+  EXPORTING                                                 "D46K925013
+  iatinn                         = packaging_option         "D46K925013
+  TABLES                                                    "D46K925013
+  material_batch                 = i_matnr                  "D46K925013
+  char_data                      = i_packopt                "D46K925013
+   cawn_data                      = i_cawn                  "D46K925013
+ EXCEPTIONS
+   too_much_input                 = 3                       "D46K925013
+   OTHERS                         = 4.                      "D46K925013
+  IF NOT i_packopt[] IS INITIAL.                            "D46K925013
+    SORT i_packopt BY matnr.                                "D46K925013
+  ENDIF.                                                    "D46K925013
+
+* Hey when does this inventory expire, well let's build an itab that has
+* that information. OK.
+  PERFORM fill_expiration_table.
+
+* Builds tables that have product group, status, standard unit of measur
+* e and Business group.
+  PERFORM build_imara.
+* Added the division to get to business group for components.
+  PERFORM build_division_table.                             "DEVK923169
+* We're done with I_ausp time to free that memory space.
+  FREE i_ausp.
+
+ENDFORM.                               " BUILD_INTERNAL_TABLES
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_BATCH_CONTROL_I_MCHB
+*&---------------------------------------------------------------------*
+FORM build_batch_control_i_mchb.
+
+* Builds the driver file and with this perform I do an export of the
+* of the data to memory and then call another program to figure the
+* the intransit quantities.
+  PERFORM build_driver_files.
+* Rekey the file and delete any duplicates.
+  SORT i_marcx BY matnr werks.
+  DELETE ADJACENT DUPLICATES FROM i_marcx COMPARING matnr werks.
+* Get all inventory for items that are batched managed.
+  SELECT matnr werks lgort charg clabs cumlm cinsm ceinm cspem
+             INTO TABLE i_mchb                              "DEVK921287
+             FROM mchb
+             FOR ALL ENTRIES IN i_marcx
+             WHERE matnr EQ i_marcx-matnr
+               AND werks EQ i_marcx-werks.
+* Get all inventory for items at the vendor.
+  SELECT matnr werks charg sobkz lifnr
+         lblab lbins lbein             "DEVK933435  "DEVK921287
+              INTO TABLE i_mslb
+              FROM mslb
+              FOR ALL ENTRIES IN i_marcx
+             WHERE matnr EQ i_marcx-matnr
+               AND werks EQ i_marcx-werks.
+
+* Clear the header line from I_mchb.
+  CLEAR i_mchb.
+* Add vendor inventory to the batch managed table.
+  LOOP AT i_mslb.
+    i_mchb-matnr = i_mslb-matnr.
+    i_mchb-werks = i_mslb-werks.
+    i_mchb-charg = i_mslb-charg.
+    i_mchb-lifnr = i_mslb-lifnr.                            "DEVK921287
+    i_mchb-clabs = i_mslb-lblab.
+    i_mchb-cinsm = i_mslb-lbins.       " Added         DEVK926917
+    i_mchb-ceinm = i_mslb-lbein.       " DEVK933435
+    i_mchb-manage = 'X'.
+    i_mchb-atvendor = '*'.
+    APPEND i_mchb.
+  ENDLOOP.
+
+* Does a quick update to make sure that all of the materials in this ITA
+* B are flagged as batch managed.
+  i_mchb-manage = 'X'.
+  MODIFY i_mchb TRANSPORTING manage WHERE manage = ' '.
+* Done with these two table. All of the batch managed information has be
+* eb gathered.
+  FREE i_mslb.
+  FREE i_marcx.
+
+ENDFORM.                               " BUILD_BATCH_CONTROL_I_MCHB
+
+*&---------------------------------------------------------------------*
+*&      Form  ADD_NO_BATCH_CONTROL_I_MCHB
+*&---------------------------------------------------------------------*
+FORM add_no_batch_control_i_mchb.
+* Add the non batched controlled information to the internal table.
+  SORT i_marcb BY matnr werks.
+  DELETE ADJACENT DUPLICATES FROM i_marcb COMPARING matnr werks.
+
+* Material Master: Storage Location/Batch Segment for non batched matnrs
+  SELECT matnr werks lgort labst umlme insme einme speme    "DEVK921287
+              INTO TABLE i_mard
+              FROM mard
+              FOR ALL ENTRIES IN i_marcb
+              WHERE matnr EQ i_marcb-matnr
+                AND werks EQ i_marcb-werks.
+
+* Clear the header line from i_mchb.
+  CLEAR i_mchb.
+
+* Add Mard data to internal inventory table.
+  LOOP AT i_mard.
+
+    i_mchb-matnr = i_mard-matnr.
+    i_mchb-werks = i_mard-werks.
+    i_mchb-lgort = i_mard-lgort.                            "DEVK921287
+    i_mchb-clabs = i_mard-labst.
+    i_mchb-cumlm = i_mard-umlme.
+    i_mchb-cinsm = i_mard-insme.
+    i_mchb-ceinm = i_mard-einme.
+    i_mchb-cspem = i_mard-speme.
+
+    APPEND i_mchb.
+
+  ENDLOOP.
+* done with mard clear.
+  FREE i_mard.
+* Find at vendor inventory for non batched matnrs.
+  SELECT matnr werks charg sobkz lifnr lblab lbins          "DEVK921287
+              INTO TABLE i_mslb
+              FROM mslb
+              FOR ALL ENTRIES IN i_marcb
+              WHERE matnr EQ i_marcb-matnr
+                AND werks EQ i_marcb-werks.
+
+* clear the header from i_mchb.
+  CLEAR i_mchb.
+
+* add the information to the internal inventory table.
+  LOOP AT i_mslb.
+
+    CLEAR i_mchb.
+
+    i_mchb-matnr = i_mslb-matnr.
+    i_mchb-werks = i_mslb-werks.
+    i_mchb-lifnr = i_mslb-lifnr.                            "DEVK921287
+    i_mchb-charg = i_mslb-charg.
+    i_mchb-clabs = i_mslb-lblab.
+    i_mchb-cinsm = i_mslb-lbins.       " Added   DEVK926917
+    i_mchb-ceinm = i_mslb-lbein.                            "DEVK933435
+*   i_mchb-ceinm = i_mslb-lbins.     " Deleted DEVK926917
+
+    APPEND i_mchb.
+
+  ENDLOOP.
+* Done with the none batch inventory information.
+  FREE i_marcb.
+  FREE i_mslb.
+* Now load the data created in the previous perform.
+  PERFORM load_imported_data.                               "DEVK918890
+
+ENDFORM.                               " ADD_NO_BATCH_CONTROL_I_MCHB
+*&---------------------------------------------------------------------*
+*&      Form  REMOVE_MTNRS_WITH_NO_INVENTORY
+*&---------------------------------------------------------------------*
+FORM remove_mtnrs_with_no_inventory.
+* This section does not really delete items that have no inventory anym
+* ore. Originally that is what it was designed to do. It now builds a
+* series of internal tables that can be used to get characteristic
+* information.
+  LOOP AT i_mchb.
+*Delete no inventory items
+    IF i_mchb-clabs EQ 0 AND                                "D46K936232
+       i_mchb-cumlm EQ 0 AND                                "D46K936232
+       i_mchb-cinsm EQ 0 AND                                "D46K936232
+       i_mchb-ceinm EQ 0 AND                                "D46K936232
+       i_mchb-cspem EQ 0.                                   "D46K936232
+
+      DELETE i_mchb INDEX sy-tabix.                         "D46K936232
+      CONTINUE.                                             "D46K936232
+    ENDIF.                                                  "D46K936232
+* Force the 18 character material into a 50 character field.
+* 50 characters are needed if you work with AUSP.
+    APPEND i_mchb-matnr TO i_matnr50.
+* Create a table with the combination matnr charge combined into a 50
+* character field used to extract matnr/batch info from inob/ausp.
+    i_objek50-objek+0(18) = i_mchb-matnr.
+    i_objek50-objek+18(10) = i_mchb-charg.
+    APPEND i_objek50.
+* A table with just matnr and werks.
+    i_matnrwerks-matnr = i_mchb-matnr.
+    i_matnrwerks-werks = i_mchb-werks.
+    APPEND i_matnrwerks.
+  ENDLOOP.
+* Get rid of dups.
+  SORT i_matnr50 BY matnr.
+  DELETE ADJACENT DUPLICATES FROM i_matnr50.
+* move the 50 character field into a 40/18 character table.
+  i_matnr40[] = i_matnr50[].
+  i_matnr18[] = i_matnr50[].
+* Now we should have 1 material number of all materials in the inv file.
+  SORT i_matnr18 BY matnr.
+  DELETE ADJACENT DUPLICATES FROM i_matnr18.
+* Delete the dups from i_objek50 and make a copy to i_objek40 which is
+* 40 characters.
+  SORT i_objek50 BY objek.
+  DELETE ADJACENT DUPLICATES FROM i_objek50.
+
+  i_objek40[] = i_objek50[].
+* Delete the dups from matnrwers.
+  SORT i_matnrwerks BY matnr werks.
+  DELETE ADJACENT DUPLICATES FROM i_matnrwerks.
+
+  "DEVK923169  This whole section was added.....
+* Table that will be used for special procurement logic.
+  i_spec_proc_tab[] = i_matnrwerks[].
+
+* Sort the table so that the manufacturing plant appears first.
+* I did this because preprint might be produced at 1030 but the actual
+* manufacturing of the product will be at 1120. plant 1120 will show
+* nutritional as the business group and plant 1030 would have shown OTC.
+  SORT i_spec_proc_tab BY matnr werks DESCENDING.
+  DELETE ADJACENT DUPLICATES FROM i_spec_proc_tab COMPARING matnr.
+                                                            "DEVK923169
+ENDFORM.                               " REMOVE_MTNRS_WITH_NO_INVENTORY
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_I_AEOI
+*&---------------------------------------------------------------------*
+FORM build_i_aeoi.
+* Here is where the 40 character material table comes into play.
+  SELECT aennr usobj revlv
+   INTO TABLE i_aeoi
+   FROM aeoi
+   FOR ALL ENTRIES IN i_matnr40
+   WHERE aetyp EQ c_aetyp
+     AND objkt EQ i_matnr40-matnr.
+
+* Sort and delete any duplicates.
+  SORT i_aeoi BY aennr usobj revlv.
+  DELETE ADJACENT DUPLICATES FROM i_aeoi.
+
+* Find the change number and revision level for each material if there
+* is any change number.
+  LOOP AT i_aeoi.
+    READ TABLE i_matnr50 WITH KEY matnr = i_aeoi-usobj BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      i_aeoi1-matnr = i_aeoi-usobj+0(18).
+      i_aeoi1-revlv = i_aeoi-revlv.
+      i_aeoi1-aennr = i_aeoi-aennr.
+      APPEND i_aeoi1.
+    ENDIF.
+  ENDLOOP.
+* We will sort the table by matnr and revision level.
+  SORT i_aeoi1 BY matnr revlv.
+* We're done with this so let's reclaim the space.
+  FREE i_aeoi.
+
+ENDFORM.                               " BUILD_I_AEOI
+
+*&---------------------------------------------------------------------*
+*&      Form  FILL_EXPIRATION_TABLE
+*&---------------------------------------------------------------------*
+FORM fill_expiration_table.
+  CHECK i_mchb[] IS NOT INITIAL.                            "D60K906797
+* Get the expiration dates for all of the batches in the internal table.
+  SELECT matnr
+         charg
+         vfdat
+         zustd                                              "D60K906797
+     INTO TABLE i_mch1
+         FROM mch1
+         FOR ALL ENTRIES IN i_mchb
+         WHERE matnr EQ i_mchb-matnr
+           AND charg EQ i_mchb-charg.
+
+  IF sy-subrc = 0.
+    SORT i_mch1 BY matnr charg vfdat.
+    DELETE ADJACENT DUPLICATES FROM i_mch1.
+  ENDIF.
+
+ENDFORM.                               " FILL_EXPIRATION_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  GET_EXPIRATION_DATE
+*&---------------------------------------------------------------------*
+FORM get_expiration_date.
+
+  READ TABLE i_mch1 WITH KEY matnr = i_mchb-matnr
+                             charg = i_mchb-charg BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-vfdat = i_mch1-vfdat.
+    i_mchb-zustd = i_mch1-zustd.                            "D60K906797
+  ENDIF.
+
+ENDFORM.                               " GET_EXPIRATION_DATE
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_DRIVER_FILES
+*&---------------------------------------------------------------------*
+FORM build_driver_files.
+* Build a material table from marc.
+  SELECT matnr werks lvorm xchar mmsta trame
+         INTO TABLE i_marc
+         FROM marc.
+
+* Sort by componenets flagged by deletion. Descending should force to
+* the bottom, there by improving performance because is doenst have to
+* retabix the records prior to the deleted record.
+* We are also deleting records that are on a D2 status, This means they
+* should not have inventory anymore.
+** Removed the the D2 logic. Scenarios do exist where D2 items end up
+** with inventory.               DEVK933435
+  SORT i_marc BY lvorm DESCENDING.
+
+* Create a duplicate of I_marc.
+  i_marc_temp[] = i_marc[].                                 "DEVK918890
+
+* Trame indicates the quantity of inventory in transit.
+* Goal is to build a file with just intransit inventory and then transpo
+* rt this to memory so that it is available for another program.
+  SORT i_marc_temp BY trame DESCENDING.                     "DEVK918890
+  DELETE i_marc_temp WHERE trame = c_trame.                 "DEVK918890
+  SORT i_marc_temp BY matnr werks.                          "DEVK918890
+* Create and export table that matches the import table of ZPP0035F.
+  LOOP AT i_marc_temp.                                      "DEVK918890
+    i_marc_export-matnr = i_marc_temp-matnr.                "DEVK918890
+    i_marc_export-werks = i_marc_temp-werks.                "DEVK918890
+    i_marc_export-trame = i_marc_temp-trame.                "DEVK918890
+    APPEND i_marc_export.                                   "DEVK918890
+  ENDLOOP.                                                  "DEVK918890
+* Exports the data to memory. This data will only be available when the
+* top program is running. It will be cleared when the top program in thi
+* s case ZPP0035 completes.
+
+  EXPORT i_marc_export TO MEMORY ID '2'.                    "D60K900246
+* call the program to build the intransit inventory
+  SUBMIT zpp0035f AND RETURN.                               "DEVK918890
+* Start building the main files to build ZMCHB_REV. These will be the
+* driver files. The i_marcb will be materials that are not batched conto
+* lled and the i_marcx are for items that are batched controlled.
+** Its was found that this way was faster then array deletes.
+  SORT i_marc BY xchar.
+* Find first occurance of xchar (X)
+  READ TABLE i_marc WITH KEY xchar = c_char BINARY SEARCH.
+* Use a counter to find the first record and then the last record from
+* I_marc.
+  first_rec = sy-tabix.
+
+  LOOP AT i_marc FROM sy-tabix.
+    IF i_marc-xchar <> c_char.
+      EXIT.
+    ENDIF.
+    last_rec = last_rec + 1.
+  ENDLOOP.
+
+  last_rec = last_rec + first_rec - 1.
+
+* Know that we know the location via sy-tabix of the firs and last recor
+* d we can do an array select to build our internal table.
+  IF last_rec > first_rec.
+    APPEND LINES OF i_marc FROM first_rec TO last_rec TO i_marcx.
+  ENDIF.
+
+* clear all of the fields to build the next table.
+  CLEAR first_rec.
+  CLEAR last_rec.
+  CLEAR c_char.
+
+  READ TABLE i_marc WITH KEY xchar = c_char BINARY SEARCH.
+  first_rec = sy-tabix.
+  LOOP AT i_marc FROM sy-tabix.
+    IF i_marc-xchar <> c_char.
+      EXIT.
+    ENDIF.
+    last_rec = last_rec + 1.
+  ENDLOOP.
+
+  last_rec = last_rec + first_rec - 1.
+
+* Know that we know the location via sy-tabix of the first and last reco
+* rd we can do an array select to build our internal table.
+  IF last_rec > first_rec.
+    APPEND LINES OF i_marc FROM first_rec TO last_rec TO i_marcb.
+  ENDIF.
+
+* clear i_marc we are done with it.
+  FREE i_marc.
+
+ENDFORM.                               " BUILD_DRIVER_FILES
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_IMARA
+*&---------------------------------------------------------------------*
+*  dmm 4/27/1999 - added 1st character of product hierarchy which is
+*                  the business group (P,N,O)
+*----------------------------------------------------------------------*
+FORM build_imara.
+
+* This was added to capture standard unit of measure and the material
+* Group. Later the product hierarchy was added. This will provide us wit
+* h business group later. Spart will provide division which will lead to
+* business group..
+  SELECT matnr matkl meins spart prdha                      "DEVK923169
+         INTO TABLE i_mara             "DMM 4/27/1999
+         FROM mara
+         FOR ALL ENTRIES IN i_matnr18
+         WHERE matnr EQ i_matnr18-matnr.
+
+* Added to capture the material/werks status.
+  SELECT matnr werks lvorm xchar mmsta
+         INTO TABLE i_marc
+         FROM marc
+         FOR ALL ENTRIES IN i_matnrwerks
+         WHERE matnr EQ i_matnrwerks-matnr
+           AND werks EQ i_matnrwerks-werks.
+
+ENDFORM.                               " BUILD_IMARA
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL_GROUP_BASEUM
+*&---------------------------------------------------------------------*
+FORM get_material_group_baseum.
+
+
+  READ TABLE i_mara WITH KEY matnr = i_mchb-matnr
+                                       BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-matnrgroup = i_mara-matkl.
+    i_mchb-baseum     = i_mara-meins.
+* This section of logic was added for components.
+    IF NOT i_mara-prdha+0(1) IS INITIAL.                    "DEVK923169
+      i_mchb-busgrp     = i_mara-prdha+0(1).                "DEVK923169
+    ELSE.                                                   "DEVK923169
+      READ TABLE i_spec_proc_tab WITH KEY matnr = i_mara-matnr
+                                         BINARY SEARCH.     "DEVK923169
+
+      IF sy-subrc = 0.                                      "DEVK923169
+        READ TABLE i_t134g WITH KEY werks = i_spec_proc_tab-werks
+                                    spart = i_mara-spart
+                                            BINARY SEARCH.  "DEVK923169
+        IF sy-subrc = 0.                                    "DEVK923169
+          CASE i_t134g-gsber.                               "DEVK923169
+            WHEN '20  ' OR '25  ' OR '27  '.                "D46K932242
+              i_mchb-busgrp = 'O'.                          "DEVK923169
+            WHEN '30  '.                                    "DEVK923169
+              i_mchb-busgrp = 'P'.                          "DEVK923169
+            WHEN '40  '.                                    "DEVK923169
+              i_mchb-busgrp = 'N'.                          "DEVK923169
+            WHEN '50  '.                                    "DEVK923169
+              i_mchb-busgrp = ' '.                          "DEVK923169
+            WHEN '65  '.                                    "D46K932242
+              i_mchb-busgrp = 'S'.                          "D46K932242
+            WHEN '80  ' OR '85  ' OR '87  '.                "D46K932242
+              i_mchb-busgrp = 'R'.                          "D46K930643
+          ENDCASE.                                          "DEVK923169
+        ENDIF.                                              "DEVK923169
+      ENDIF.                                                "DEVK923169
+    ENDIF.                                                  "DEVK923169
+  ENDIF.                                                    "DEVK923169
+ENDFORM.                               " GET_MATERIAL_GROUP_BASEUM
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL_STATUS
+*&---------------------------------------------------------------------*
+FORM get_material_status.
+
+  READ TABLE i_marc WITH KEY matnr = i_mchb-matnr
+                             werks = i_mchb-werks
+                                       BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-status = i_marc-mmsta.
+    i_mchb-manage = i_marc-xchar.      " DEVK927922
+  ENDIF.
+
+* You now have enough info loaded from the different reads to extract
+* Business area.
+
+  READ TABLE i_t134g WITH KEY werks = i_mchb-werks
+                              spart = i_mara-spart
+                                     BINARY SEARCH.
+
+  IF sy-subrc = 0.
+    i_mchb-gsber = i_t134g-gsber.
+  ELSE.                                                     "D60K913699
+    CLEAR i_mchb-gsber.                                     "D60K913699
+  ENDIF.
+
+ENDFORM.                               " GET_MATERIAL_STATUS
+*&---------------------------------------------------------------------*
+*&      Form  GET_BUSINESS_GROUP
+*&---------------------------------------------------------------------*
+FORM get_business_group.
+
+  READ TABLE i_mara WITH KEY matnr = i_mchb-matnr
+                                       BINARY SEARCH.
+  IF sy-subrc = 0.
+    i_mchb-busgrp = i_mara-prdha(1).
+  ENDIF.
+
+ENDFORM.                               " GET_BUSINESS_GROUP
+*&---------------------------------------------------------------------*
+*&      Form  LOAD_IMPORTED_DATA
+*&---------------------------------------------------------------------*
+*       This was added to capture the intransit data which drops from
+*       know inventory files and moves to intransit.
+*----------------------------------------------------------------------*
+FORM load_imported_data.                                    "DEVK918890
+* bring the data back in that was placed into memory by the program
+* ZPP0035F. This was to capture intransit inventory
+  IMPORT i_mseg_export FROM MEMORY ID '3'.                  "D60K900246
+* Clear the header from i_mchb.
+  CLEAR i_mchb.
+
+* add the data to the inventory table.
+  LOOP AT i_mseg_export.                                    "DEVK918890
+
+    CLEAR i_mchb.
+
+    i_mchb-matnr = i_mseg_export-matnr.                     "DEVK918890
+    i_mchb-werks = i_mseg_export-werks.                     "DEVK918890
+    i_mchb-charg = i_mseg_export-charg.                     "DEVK918890
+    i_mchb-lgort = i_mseg_export-lgort.                     "DEVK921287
+    i_mchb-lifnr = i_mseg_export-lifnr.                     "DEVK921287
+    i_mchb-cumlm = i_mseg_export-erfmg.                     "DEVK918890
+
+    APPEND i_mchb.                                          "DEVK918890
+
+  ENDLOOP.
+* done with the export import information.
+  FREE i_mseg_export.
+
+ENDFORM.                               " LOAD_IMPORTED_DATA
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_DIVISION_TABLE
+*&---------------------------------------------------------------------*
+FORM build_division_table.
+
+  SELECT werks spart gsber
+         INTO TABLE i_t134g
+         FROM t134g.
+
+  SORT i_t134g BY werks spart.                              "D60K913699
+
+ENDFORM.                               " BUILD_DIVISION_TABLE
+*&---------------------------------------------------------------------*
+*&      Form  get_batch_usage
+*&---------------------------------------------------------------------*
+FORM get_batch_chars.                                       "D46K936232
+  IF NOT i_mchb-charg IS INITIAL.
+    READ TABLE i_batch_chars WITH KEY matnr = i_mchb-matnr
+                                      charg = i_mchb-charg
+                                                BINARY SEARCH.
+    IF sy-subrc = 0.
+      i_mchb-batch_usage    = i_batch_chars-zusage.
+      i_mchb-at_risk        = i_batch_chars-at_risk.
+      i_mchb-quality_status = i_batch_chars-q_status.
+      i_mchb-disposition    = i_batch_chars-disposition.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " get_batch_chars           
