@@ -1,4 +1,4 @@
-Report zpp0035d Technical Information
+Report zpp0035d Technical Information details 
 Step 1: Build Characteristics ( BUILD_CHARACTERISTICS )
 •	In this sub-routine atinn, atnam fields are fetched from cabn table into the internal table icabn.
 •	The above internal table is looped to fetch the size code, customer label, packaging option, packaging formula and revision level.
