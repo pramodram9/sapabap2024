@@ -1,0 +1,71 @@
+Report zpp0035d Technical Information
+Step 1: Build Characteristics ( BUILD_CHARACTERISTICS )
+•	In this sub-routine atinn, atnam fields are fetched from cabn table into the internal table icabn.
+•	The above internal table is looped to fetch the size code, customer label, packaging option, packaging formula and revision level.
+•	Each of this information is passed on to the respective local variable created.
+
+Step 2: Capturing the batch controlled inventory information( BUILD_BATCH_CONTROL_I_MCHB )
+•	In this sub-routine we have another subroutine build_driver_files being called to build driver file information and exports it to the memory and calls another program( zpp0035f) to figure out the intransit quantities.
+•	In this above mentioned subroutine we are fetching the matnr, werks, lvorm, xchar, msta, trame fields from the marc table into a local table i_marc. Please note that the selection on marc table is an open selection and does not have any where conditions.
+•	This internal table is sorted in descending order based on the lvorm field and the i_marc entries are passed to another temporary internal table i_marc_temp[].
+•	I_marc_temp[] is sorted in descending based on the field trame( qty of inventory in transit ) and entries are deleted from this where trame = 0.
+•	Now, i_marc_temp is sorted in ascending order based on the fields matnr, werks and it is looped to pass the fields matnr, werks, trame to another exporting internal table i_marc_export which is export to the MEMORY ID ‘2’.
+•	Then another report zpp0035f is being called through the submit statement which will build the intransit inventory.
+•	The next step in this routine is to build two more internal tables i_marcx( which contains the batch controlled items ) and i_marcb( which contain materials that are not batch controlled ).
+•	The next step is to delete the duplicates from the internal table i_marcx comparing matnr, werks fields.
+•	The fields  matnr werks lgort charg clabs cumlm cinsm ceinm cspem are fetched from the inventory table MCHB to internal table i_mchb for all the entries in i_marcx based on the matnr and werks fields in i_marcx.
+•	Next the fields matnr werks charg sobkz lifnr lblab lbins lbein are fetched from the inventory item table mslb for all the entries in i_marcx based on the matnr and werks fields.
+•	The header line of the internal table i_mchb is removed and we are looping the i_mslb to append these entries to i_mchb.
+•	Now the final step in this routine is to update the manage field in the internal table i_mchb with a flag ‘X’. This flagging is done as these are batch managed.
+
+Step 3: Capturing the non-batch controlled inventory items( add_no_batch_control_i_mchb ).
+•	Here we are leveraging the other non-batched internal table i_marcb which is populated in the step 2 and deleting the duplicate entries based on the matnr and werks fields.
+•	Now we are fetching the fields matnr werks lgort labst umlme insme einme speme from the table mard for all the entries in i_marcb based on the matnr and werks fields into the internal table i_mard.
+•	The fetched entries from the mard table are appended to the main inventory table i_mchb by looping on the i_mard.
+•	Next step would be to fetch the vendor inventory information from the mslb table. The fields matnr werks charg sobkz lifnr lblab lbins are fetched for all the entries in i_marcb based on the matnr and werks into the internal table i_mslb.
+•	 Now, we are appending the entries from i_mslb to the main inventory table i_mchb through loop.
+•	The final steps in this routine is to load the data created in the previous step( step 2 ) via another subroutine (load_imported_data).
+•	In the load_imported_data subroutine, we are importing the mseg table information into the i_mseg_export from the previously submitted report ZPP0035F.
+•	This imported mseg data is appended to the main internal inventory table i_mchb via loop.
+
+So, till this step we are building our Internal inventory table from various other tables such as mchb, mslb, mard.
+Step 4: Build the driver files for processing ( remove_mtnrs_with_no_inventory ).
+•	In this routine we are looping on the i_mchb table and deleting that row if the clabs, cumlm, cinsm, ceinm, cspem fields values are 0.
+•	In the same loop we are forcing 18 character matnr to 50 characters.
+•	We are preparing the special procurement table i_spec_proc_tab[] matnr and werks fields from the i_mchb internal table.
+Step 5: Build AUSP Internal Tables ( build_internal_tables )
+•	In this routine, we are building the internal table i_matnr_charg( this has 2 fields matnr, charg) and i_matnr( this has 1 field matnr ) from the i_mchb table. 
+•	Next we are calling the custom FM Z_GET_MAT_BATCH_CLASS to build the batch characteristics ( i_batch_chars ) from the table i_matnr_charg.
+•	Next we are calling the custom FM Z_GET_CLASSIFICATION where we are exporting the size_code, cust_label, pack_formula_id, packaging_option fetched in step 1 and the i_matnr table in step 5 to fetch the new internal tables i_sizecode, i_custlbl, i_formula, i_packpot, i_cawn.
+•	The next step is to call another subroutine fill_expiration_table to fetch the inventory expiration information.
+•	In this subroutine fill_expiration_table, we are fetching the fields matnr,charg,vfdat,zustd from mch1 into i_mch1 internal table for all the entries in i_mchb based on the fields matnr, charg.
+•	The next step is to call the subroutine build_imara which will build the tables that have product group, statusm UoM and Business group.
+•	In the subroutine build_imara, we are fetching the fields  matnr matkl meins spart prdha from mara table based on the matnr into the internal tablei_mara.
+•	We are also fetching the fields matnr werks lvorm xchar mmsta from march table based on the matnr and werks fields into the internal table i_marc.
+•	The next step is to build the division data through the subroutine build_division_table where we are fetching the fields werks spart gsber from the table t134g into the internal table t134g. Please note this is an open select query and does not have any where conditions.
+
+•	Now we are at the step where we have built all our local internal tables and all the required data and now we are proceeding ahead to start the biggest loop on the inventory table i_mchb.
+
+Step 6: Loop on the i_mchb table and call the other subroutines to update the field information of the internal table i_mchb.
+•	Before the loop start we are sorting some of the internal tables such as i_mchb, i_mara, i_marc, i_spec_proc_tab.
+•	We are clearing some of the fields such as size_code, cust_label, formula_id, packaging_option, status, matnrgroup, baseum, batch_usage, at_risk, quality_status, disposition, manage.
+•	Subroutine get_size_code, get_customer_label, get_pack_formula_id, get_packaging_option  are called and here we updating the i_mchb-sizecode , custlabel,formula_id, packaging option fields based on the classification data from the step 5.
+•	In the subrouting get_batch_chars we are updating the batch characteristics information from the internal table i_batch_chars.
+•	In the subroutine get_expiration_date, we are updating the expiration date information from the internal table i_mch1.
+•	In the subroutine get_material_group_baseum, we are updating the Material group number and the base unit of measure using the internal tables i_spec_proc_tab and i_t134g.
+•	In the next subroutine get_material_status, we are updating the material status manage field information from the i_marc internal tables.
+
+Once all the required field information is fetched in the main inventory internal table, we are calling the final subroutines get_revision_levels, fill_zmchb_rev, unlock_zmchb_rev.
+
+•	In the get_revision_levels subroutine, we are fetching the fields cuobj, objek from the table inob into the internal table i_inob based on the objek field in the i_objeck50 internal table.
+•	Now using the fields objek in i_inob and revision_level, c_atzhl, c_mafid, c_klart we are fetching additional fields objek atinn atzhl mafid klart adzhl atwrt from the table ausp into the internal table i_revlvl.
+•	Using the above step internal tables we are filling an temporary internal table called temp_hold.
+•	Next we are calling the subroutine build_i_aeoi to find the engineering change number details, where we are fetching the fields aennr usobj revlv from the table aeoi based on the matnr and aetyp = 41.
+•	With this information we are updating the fields revision, change_number in the main inventory internal table i_mchb.
+•	In the subroutine fill_zmchb_rev,  are looping on the final i_mchb table building other internal tables such as i_mchb2, i_lbl.
+•	Next we are calling another subroutine get_label_descrition where we are filling the label description and preparing the i_mchb_rev internal table.
+•	Once the i_mchb_rev table data is prepared we are calling the next subroutine get_cost to fetch the cost information from the table mbew into the internal table i_mbew based on the matnr, werks, bwtar fields.
+•	Once all the costing information, and label descriptions are filled we are going to update the custom table ZMCHB_REV from the internal table i_mchb_rev.
+•	But before updating the table we are locking the table via the subroutine lock_zmchb_rev and deleting the existing custom table entries via the subroutine clear_zmchb_rev and then inserting all the information to ZMCHB_REV table.
+•	Once the table entries are updated we are calling our final routine unlock_zmchb_rev to unlock the custom table we locked before.
+•	And with this step the processing of the program is completed.
