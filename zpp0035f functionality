@@ -1,0 +1,27 @@
+Report zpp0035f Functionality
+This program starts with 2 performs initially.
+Step 1: The 1st step starts with the subroutine - get_intransit_new.
+•	Here the first step is to import the i_marc_export table which is exported in the program zpp0035d.
+•	If there is no data exists in this internal table then we are fetching the fields matnr werks trame from marc table into i_marc where trame is not equal to 0.
+•	Based on the i_marc entries we are next fetching the fields matnr reswk ebeln ebelp loekz elikz umrez umren werks menge wamng wemng from the table mdub based on the fields matnr and werks into the internal table i_mdub.
+•	Next we are removing the deleted or completed lines from the table i_mdub where loekz = ‘X’ and elikz = ‘X’.
+•	Now we are fetching the fields ebeln ebelp gjahr belnr buzei bwart matnr werks charg from ekbe table with an inner join on ekpo on ebeln and ebelp fields into internal table i_ekbe based on the entries in i_mdub on the fields ekbe fields ebeln and ebelp and ekpo field lfret is not equal to ‘NLCC’.
+•	Now we will be fetching the fields mblnr mjahr zeile bwart xauto matnr werks lgort charg lifnr shkzg menge meins erfmg erfme ebeln ebelp from the table mseg into the internal table i_mseg_in for the corresponding entries in i_ekbe table based on the fields belnr, gjahr, buzei and delete the rows in the i_mseg_in where the field xauto ‘X’.
+•	Sort the i_ekbe in ascending order by the fields ebeln and ebelp.
+•	Sort the i_mseg_in in ascending order based on the fields mblnr mjahr zeile matnr.
+•	Now loop on the i_mdub  table and check if the scheduled qty( menge ) = quantity delivered (wmeng ), and if it matches we will go to the next entry in the loop.
+•	If the above qtys does not match, then we make a read on the i_ekbe table based on the ebeln, ebelp and loop on the same table based on the sy-tabix value.
+•	Within this loop we are checking the i_ekbe – ebeln, ebelp values are matching with the same fields of i_mdub and if it does not match we are exiting the loop.
+•	Next in the similar way, we are looping on the i_mseg_in and comparing the fields mblnr, mjahr, zeile with i_ekbe-belnr, gjahr, buzei and the entries does not match we are exiting the loop.
+•	If all the entries are matching then we are building another internal table i_mseg.
+•	Next we are accumulating the i_mseg_in-menge to intransit variable and appending all these entries to i_mseg internal table.
+•	Now we are again fetching the fields matnr, werks, bwesb into i_marc from marc table and deleting the entries where trame is initial.
+•	Based on the i_marc entries we are fetching all the fields from mstb table into i_mstb based on matnr and werks.
+•	Now we are fetching the fields ebeln ebelp gjahr belnr buzei bwart matnr werks charg from ekbe table with join on ekpo based on the fields ebeln, ebelp for the entries in i_mstb table.
+•	We are deleting the entries from i_ekbe where bwart not equal to 107, 109.
+•	Now we are fetching the same fields as earlier mblnr mjahr zeile bwart xauto matnr werks lgort charg lifnr shkzg menge meins erfmg erfme ebeln ebelp from mseg table into i_mseg_in based on the i_ekbe-belnr, gjahr and buzei fields.
+•	Now delete the entries in i_mseg_in where xauto is X and bwart is not equal to 107, 109.
+•	We are appending the above entries to i_mseg table similar to the above logic where we filled i_mseg table.
+
+The last subroutine is to export these internal tables to memory id ‘3’.
+•	For this a subroutine export_table_i_mseg is created and we are moving the i_mseg entries to i_mseg_export which is called in the parent program.
