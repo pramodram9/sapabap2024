@@ -1,0 +1,31 @@
+Technical Specifications of the report ZBI_MATBOM:
+
+This report helps the customer to fetch the available Childs for a specific BOM material and its information.
+This report has the below section screen parameters:
+1.	S_MATNR – Material Number 
+2.	S_WERKS – Plant 
+3.	P_STLAN – Alternative BOM
+4.	P_CAPID - Application
+5.	P_BATCH – Batch number for parallel processing
+6.	P_RFCGRP – Parallel processing RFC Group
+7.	R_DIS – Radiobutton to display the data
+8.	R_UPD – Radiobutton to update the data into custom table ZBI_MATBOM.
+9.	R_DEL – Radiobutton to delete all the entries from custom table ZBI_MATBOM.
+
+This report execution starts with the selection of any one radio button out of the above 3 available and entering the material number and plant information.
+
+Scenario 1 – When delete radio button is selected.
+•	When deletion is selected a subroutine delete_bom_data will be triggered and in this routine we are using a standard FM DB_TRUNCATE_TABLE, to delete all the existing entries from the table ZBI_MATBOM.
+
+Scenario 2 – When the display radio button is selected.
+•	The 1st subroutine to be called is BOM_HEADER1, and in this we are reading the fields matnr, werks, stlan, stlnr, stlal from mast table joined with stko based on the fields stlnr and stlal based on the matnr, werks, stlan, stlty and stlst given in the selection screen parameters into the internal table it_tab.
+•	Next we will be fetching the fields stlnr,idnrk,datuv from the table stop corresponding to the entries in the table it_tab based on the fields stlty and stlnr into the internal table lt_stpo.
+•	Next we will be looping on the table it_tab and compare with the entries in lt_stpo, and if any entries matches with lt_stpo then we will be removing that entry from it_tab.
+•	The above check is mainly to keep the header materials only in the table it_tab.
+•	Next we are looping at the filtered table it_tab and read the FM CS_BOM_EXPL_MAT_V2 for each material and fetch its corresponding child BOM materials into the table it_stb.
+•	We will loop at the it_stb to fetch only few fields information such as top_matnr, head_matnr, ojtxb, stufe, mtart, matmk, stlty, stlnr, datuv, andat, mnglg, meins, item_matnr, ojtxp values and prepare another internal table it_stb1 with these fields information.
+•	In the next step we will call the 2nd subroutine bom_child in which we will be looping on the it_stb1 to prepare the final internal table it_final with the fields top_matnr, head_matnr, ojtxb, stufe, mtart, matmk, stlty, stlnr, datuv, andat, mnglg, meins, item_matnr, ojtxp.
+•	Now loop on the it_final internal table which will call the perform recursive_bom in which we are validating if the material is present in the table mast and fetch its data to it_tab.
+•	We will again loop on it_tab and call the FM CS_BOM_EXPL_MAT_V2 to fetch the child material BOM into it_stb1 and fill the data into the fields top_matnr, head_matnr, ojtxb, stufe, mtart, matmk, stlty, stlnr, datuv, andat, mnglg, meins, item_matnr, ojtxp of the final table it_final.
+•	Once we consolidate all the data in the internal table it_final, we will be building our ALV catalog and the columns information in the subroutine build_catalog.
+•	And then we will call the subroutine display_output in which we will call the standard FM REUSE_ALV_GRID_DISPLAY to display the lt_final internal table data as ALV output in the report.
