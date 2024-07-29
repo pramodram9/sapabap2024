@@ -1,0 +1,111 @@
+
+FUNCTION z_rfc_material_bom.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IT_TAB1) TYPE  ZBWS_BOM_TT
+*"     VALUE(I_WERKS) TYPE  WERKS_TABLE
+*"----------------------------------------------------------------------
+  " Function module implementation goes here
+
+  " Example loop through the importing table
+
+  LOOP AT i_werks ASSIGNING FIELD-SYMBOL(<lfs_werks>).
+    IF <lfs_werks> IS ASSIGNED.
+      wa_werks_range-sign = 'I'.
+      wa_werks_range-option = 'EQ'.
+      wa_werks_range-low = <lfs_werks>-werks.
+      APPEND wa_werks_range TO lr_werks.
+    ENDIF.
+
+  ENDLOOP.
+  LOOP AT it_tab1 INTO wa_tab.
+
+    WRITE:/ wa_tab-matnr.
+
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'PP01'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mtnrv                 = wa_tab-matnr
+        stlal                 = wa_tab-stlal
+        stlan                 = wa_tab-stlan
+        stpst                 = 0
+        svwvo                 = 'X'
+        werks                 = wa_tab-werks
+      TABLES
+        stb                   = it_stb
+*MATCAT = ls_bom_exp_hdr
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 7
+        conversion_error      = 8
+        OTHERS                = 9.
+
+    IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CLEAR: wa_stb1 , wa_stb.
+    LOOP AT it_stb INTO wa_stb.
+      wa_stb1-top_matnr      = wa_tab-matnr.
+      wa_stb1-head_matnr = wa_tab-matnr.
+      wa_stb1-ojtxb = wa_stb-ojtxb.
+      wa_stb1-stufe = wa_stb-stufe.
+      wa_stb1-mtart = wa_stb-mtart.
+      wa_stb1-matmk = wa_stb-matmk.
+      wa_stb1-stlty = wa_stb-stlty.
+      wa_stb1-stlnr = wa_stb-stlnr.
+      wa_stb1-datuv = wa_stb-datuv.
+      wa_stb1-andat = wa_stb-andat.
+      wa_stb1-mnglg = wa_stb-menge.
+      wa_stb1-meins = wa_stb-meins.
+      wa_stb1-item_matnr = wa_stb-idnrk.
+      wa_stb1-ojtxp = wa_stb-ojtxp.
+      APPEND wa_stb1 TO it_stb1.
+      CLEAR wa_stb.
+    ENDLOOP.
+  ENDLOOP.
+
+  CLEAR fs_stb1.
+  IF it_stb1 IS NOT INITIAL.
+    gv_counter = gv_counter + 1.
+
+    LOOP AT it_stb1 INTO fs_stb1.
+      IF sy-subrc = 0.
+        wa_final-top_matnr  = fs_stb1-top_matnr.
+        wa_final-head_matnr = fs_stb1-head_matnr.
+        wa_final-ojtxb = fs_stb1-ojtxb.
+        wa_final-stufe = gv_counter.
+        wa_final-werks = fs_stb1-werks.
+        wa_final-mtart = fs_stb1-mtart.
+        wa_final-matmk = fs_stb1-matmk.
+        wa_final-stlty = fs_stb1-stlty.
+        wa_final-stlnr = fs_stb1-stlnr.
+        wa_final-datuv = fs_stb1-datuv.
+        wa_final-andat = fs_stb1-andat.
+        wa_final-mnglg = fs_stb1-mnglg.
+        wa_final-mnglg1 = fs_stb1-mnglg.
+        wa_final-meins = fs_stb1-meins.
+        wa_final-item_matnr = fs_stb1-item_matnr.
+        wa_final-ojtxp = fs_stb1-ojtxp.
+        APPEND wa_final TO it_final.
+        CLEAR fs_stb1.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR wa_final.
+  LOOP AT it_final INTO wa_final.
+    PERFORM recursive_bom.
+  ENDLOOP.
+
+  PERFORM fill_rout.
+
+ENDFUNCTION.
