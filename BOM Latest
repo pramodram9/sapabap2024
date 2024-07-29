@@ -1,0 +1,742 @@
+
+*=======================================================================
+*----------------------------------------------------------------------*
+* PROGRAM NAME       : ZBI_MATBOM
+* APPLICATION NAME   : BOM
+* SUBSYSTEM          :
+* AUTHOR             : N65150(Jeevan Kumar Chilukury)
+* TRANSACTION        :
+* TABLES UPDATED     :
+* LISTS              : None
+*
+*
+* NOTES              : XXXXXXXXXXXXXX
+*
+*----------------------------------------------------------------------*
+* REVISION LOG                                                         *
+*----------------------------------------------------------------------*
+* DATE      AUTHOR    OSSM TICKET          DESCRIPTION                 *
+*----------------------------------------------------------------------*
+* 06/24/24  N65150                  Adjust BOM Level
+*
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+REPORT zbi_matbom.
+TABLES: mara,marc.
+
+TYPES : BEGIN OF ty_tab,
+          matnr TYPE mara-matnr,
+          werks TYPE mast-werks,
+          stlan TYPE mast-stlan,
+          stlnr TYPE mast-stlnr,
+          stlal TYPE mast-stlal,
+        END OF ty_tab.
+
+TYPES: BEGIN OF ty_werks,
+         werks TYPE marc-werks,
+       END OF ty_werks.
+
+DATA: lt_werks TYPE STANDARD TABLE OF ty_werks,
+      ls_werks TYPE ty_werks.
+
+TYPES : BEGIN OF ty_rout,
+          item_matnr TYPE mara-matnr,
+          plnnr      TYPE plnnr,
+        END OF ty_rout.
+
+DATA: it_tab         TYPE STANDARD TABLE OF ty_tab,
+      it_batch       TYPE TABLE OF ty_tab,
+      wa_tab         TYPE ty_tab,
+      gt_rout        TYPE STANDARD TABLE OF ty_rout,
+      wa_rout        TYPE ty_rout,
+      "lv_batch_size TYPE I VALUE 1000,       " Batch size
+      lv_batch_index TYPE i VALUE 1.         " Current batch index
+
+" Define a table type for batches
+TYPES: tt_batches TYPE TABLE OF ty_tab.
+" Define a variable to hold all batches
+DATA: lt_batches TYPE tt_batches.
+
+TYPES : BEGIN OF ty_stb.
+          INCLUDE STRUCTURE stpox.
+        TYPES: END OF ty_stb.
+
+DATA : it_stb         TYPE STANDARD TABLE OF ty_stb,
+       ls_bom_exp_hdr TYPE cscmat,
+       wa_stb         TYPE ty_stb,
+       fs_stb         TYPE ty_stb.
+
+TYPES : BEGIN OF ty_stb1,
+          matnr TYPE mara-matnr,
+          ojtxb TYPE ojtxp,
+          mtart TYPE mtart,
+          mnglg TYPE cs_e_mnglg,
+          meins TYPE meins,
+          idnrk TYPE matnr,
+          ojtxp TYPE ojtxp,
+        END OF ty_stb1.
+
+TYPES: BEGIN OF ty_final,
+         top_matnr  TYPE mara-matnr,
+         head_matnr TYPE mara-matnr,
+         ojtxb      TYPE ojtxp,
+         stufe      TYPE i,
+         werks      TYPE werks_d,
+         mtart      TYPE mtart,
+         matmk      TYPE matkl,
+         stlty      TYPE stlty,
+         stlnr      TYPE stnum,
+         datuv      TYPE dtvon,
+         andat      TYPE andat,
+         mnglg      TYPE cs_e_mnglg,
+         mnglg1     TYPE string,
+         meins      TYPE meins,
+         item_matnr TYPE matnr,
+         ojtxp      TYPE ojtxp,
+         plnnr      TYPE plnnr,
+       END OF ty_final.
+
+DATA : it_stb1    TYPE STANDARD TABLE OF ty_final,
+       wa_stb1    TYPE ty_final,
+       fs_stb1    TYPE ty_final,
+       gv_counter TYPE i VALUE 0.
+
+
+
+DATA : it_final  TYPE STANDARD TABLE OF ty_final,
+       wa_final  TYPE ty_final,
+       it_final1 TYPE STANDARD TABLE OF zbi_matbom,
+       wa_final1 TYPE zbi_matbom.
+
+TYPE-POOLS: slis.
+DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
+      gd_repid     LIKE sy-repid.
+
+
+* *Screen elements................................
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+
+SELECT-OPTIONS : s_matnr FOR mara-matnr ,
+                 s_werks FOR marc-werks NO INTERVALS.
+PARAMETERS:
+*s_matnr type mast-matnr default '' obligatory," Material Number
+*s_werks type mast-werks default 'P001' obligatory, " Plant
+  p_stlan  TYPE mast-stlan DEFAULT '1' OBLIGATORY, " Alternative BOM
+  p_capid  TYPE rc29l-capid DEFAULT 'PP01',  " Application
+  p_batch  TYPE num10 DEFAULT '1000',
+  p_rfcgrp TYPE bdfields-rfcgr.
+SELECTION-SCREEN END OF BLOCK b1.
+
+PARAMETERS:r_dis RADIOBUTTON GROUP a DEFAULT 'X', " Display
+           r_upd RADIOBUTTON GROUP a, "Update
+           r_del RADIOBUTTON GROUP a. "Truncate Data
+
+START-OF-SELECTION.
+
+  IF s_werks IS NOT INITIAL.
+    LOOP AT s_werks ASSIGNING FIELD-SYMBOL(<lfs_werks>).
+      IF <lfs_werks> IS ASSIGNED.
+        ls_werks-werks = <lfs_werks>-low.
+        APPEND ls_werks TO lt_werks.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+  IF r_del IS NOT INITIAL.
+    PERFORM delete_bom_data.
+  ENDIF.
+
+  IF r_dis IS NOT INITIAL.
+    PERFORM bom_header1.
+    PERFORM bom_child.
+    PERFORM build_catalog.
+    PERFORM display_output.
+
+  ELSEIF r_upd IS NOT INITIAL.
+    PERFORM bom_header.
+  ENDIF.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DELETE_BOM_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+FORM delete_bom_data .
+  CALL FUNCTION 'DB_TRUNCATE_TABLE'
+    EXPORTING
+      tabname = 'ZBI_MATBOM'.
+  COMMIT WORK.
+ENDFORM.      " DELETE_BOM_DATA
+
+*&---------------------------------------------------------------------*
+*& Form BOM_HEADER
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM bom_header .
+  DATA: lv_task TYPE string.
+  DATA: gv_cnt  TYPE i,
+        lv_max  TYPE i,
+        lv_free TYPE i.
+
+  SELECT matnr werks stlan a~stlnr a~stlal FROM mast AS a
+    INNER JOIN stko AS b ON a~stlnr = b~stlnr AND a~stlal = b~stlal
+  INTO CORRESPONDING FIELDS OF TABLE it_tab
+  WHERE a~matnr IN s_matnr AND
+  a~werks IN s_werks AND
+  a~stlan = p_stlan AND b~stlty = 'M' AND b~stlst = '01' .
+
+  SORT it_tab BY matnr werks stlan stlnr.
+  DELETE ADJACENT DUPLICATES FROM it_tab COMPARING matnr werks stlan stlnr.
+
+  SELECT stlnr,idnrk,datuv
+    FROM stpo
+    INTO TABLE @DATA(lt_stpo)
+    FOR ALL ENTRIES IN @it_tab
+    WHERE stlty = 'M'
+    AND stlnr = @it_tab-stlnr.
+
+
+  SORT lt_stpo ASCENDING BY stlnr idnrk DESCENDING datuv.
+  DELETE ADJACENT DUPLICATES FROM lt_stpo COMPARING stlnr idnrk.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT it_tab ASSIGNING FIELD-SYMBOL(<lfs_tab>).
+      IF <lfs_tab> IS ASSIGNED.
+        READ TABLE lt_stpo INTO DATA(lw_stpo) WITH KEY idnrk = <lfs_tab>-matnr.
+        IF sy-subrc IS INITIAL.
+          CLEAR <lfs_tab>-matnr.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    DELETE it_tab WHERE matnr IS INITIAL.
+  ENDIF.
+
+  CLEAR wa_tab.
+
+  " Initialize batch index
+  lv_batch_index = 1.
+
+  " Loop through all entries in the original table
+  LOOP AT it_tab INTO DATA(lw_tab) FROM 1.
+    APPEND lw_tab TO it_batch.
+    " Check if the current batch has reached the batch size or if it's the last record
+    IF sy-tabix MOD p_batch = 0 OR sy-tabix = lines( it_tab ).
+      CONCATENATE sy-uname '_' sy-uzeit INTO lv_task.
+      DATA(gv_loop) = 1.
+      DO gv_loop TIMES.
+        CALL FUNCTION 'SPBT_INITIALIZE'
+          EXPORTING
+            group_name                     = p_rfcgrp
+          IMPORTING
+            max_pbt_wps                    = lv_max
+            free_pbt_wps                   = lv_free
+          EXCEPTIONS
+            invalid_group_name             = 1
+            internal_error                 = 2
+            pbt_env_already_initialized    = 3
+            currently_no_resources_avail   = 4
+            no_pbt_resources_found         = 5
+            cant_init_different_pbt_groups = 6
+            OTHERS                         = 7.
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+          gv_loop = gv_loop + 1.
+          CONTINUE.
+        ELSE.
+          " Server group initialized successfully
+          DATA(lv_buffer) = lv_max / 2.
+          IF lv_buffer > lv_free.
+            gv_loop = gv_loop + 1.
+            CONTINUE.
+          ELSE.
+            EXIT.
+          ENDIF.
+        ENDIF.
+      ENDDO.
+
+
+      gv_cnt = gv_cnt + 1.
+      WRITE:/ 'Processing of block', gv_cnt.
+      CALL FUNCTION 'Z_RFC_MATERIAL_BOM' STARTING NEW TASK lv_task
+        EXPORTING
+          it_tab1 = it_batch
+          i_werks = lt_werks.
+
+      WRITE:/ 'FM Execution Complete for block', gv_cnt.
+      " Clear the current batch for the next iteration
+      CLEAR it_batch.
+    ENDIF.
+  ENDLOOP.
+
+  IF NOT it_batch IS INITIAL.
+    " Call the function module to process the last batch
+    CONCATENATE sy-uname '_' sy-uzeit INTO lv_task.
+*    DO.
+*      CALL FUNCTION 'SPBT_INITIALIZE'
+*        EXPORTING
+*          group_name                     = p_rfcgrp
+*        IMPORTING
+*          max_pbt_wps                    = lv_max
+*          free_pbt_wps                   = lv_free
+*        EXCEPTIONS
+*          invalid_group_name             = 1
+*          internal_error                 = 2
+*          pbt_env_already_initialized    = 3
+*          currently_no_resources_avail   = 4
+*          no_pbt_resources_found         = 5
+*          cant_init_different_pbt_groups = 6
+*          OTHERS                         = 7.
+*      IF sy-subrc <> 0.
+** Implement suitable error handling here
+*        CASE sy-subrc.
+*          WHEN 1.
+*            "Error: Can't create group
+*          WHEN 2.
+*            "Error: Can't initialize group
+*          WHEN OTHERS.
+*            "other errors
+*        ENDCASE.
+*
+*      ELSE.
+*        " Server group initialized successfully
+*        lv_buffer = lv_max / 2.
+*        IF lv_buffer > lv_free.
+*        ELSE.
+*          EXIT.
+*        ENDIF.
+*      ENDIF.
+*    ENDDO.
+
+    gv_cnt = gv_cnt + 1.
+    WRITE:/ 'Processing of block', gv_cnt.
+    CALL FUNCTION 'Z_RFC_MATERIAL_BOM' STARTING NEW TASK lv_task
+      EXPORTING
+        it_tab1 = it_batch
+        i_werks = lt_werks.
+    WRITE:/ 'FM Execution completed for block',gv_cnt.
+  ENDIF.
+
+ENDFORM. " BOM_HEADER
+*&---------------------------------------------------------------------*
+*& Form BOM_CHILD
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM bom_child .
+  CLEAR fs_stb1.
+  IF it_stb1 IS NOT INITIAL.
+
+    gv_counter = gv_counter + 1.
+
+    LOOP AT it_stb1 INTO fs_stb1.
+      IF sy-subrc = 0.
+        wa_final-top_matnr  = fs_stb1-top_matnr.
+        wa_final-head_matnr = fs_stb1-head_matnr.
+        wa_final-ojtxb = fs_stb1-ojtxb.
+        wa_final-stufe = gv_counter.
+        wa_final-werks = fs_stb1-werks.
+        wa_final-mtart = fs_stb1-mtart.
+        wa_final-matmk = fs_stb1-matmk.
+        wa_final-stlty = fs_stb1-stlty.
+        wa_final-stlnr = fs_stb1-stlnr.
+        wa_final-datuv = fs_stb1-datuv.
+        wa_final-andat = fs_stb1-andat.
+        wa_final-mnglg = fs_stb1-mnglg.
+        wa_final-mnglg1 = fs_stb1-mnglg.
+        wa_final-meins = fs_stb1-meins.
+        wa_final-item_matnr = fs_stb1-item_matnr.
+        wa_final-ojtxp = fs_stb1-ojtxp.
+        APPEND wa_final TO it_final.
+        CLEAR : fs_stb1.
+      ENDIF.
+
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR wa_final.
+
+  LOOP AT it_final INTO wa_final.
+    PERFORM recursive_bom .
+  ENDLOOP.
+
+  PERFORM fill_rout.
+
+ENDFORM. " BOM_CHILD
+
+FORM recursive_bom .
+
+  CLEAR : it_tab, it_stb , it_stb1.
+  CLEAR : fs_stb,fs_stb1,wa_tab.
+  SELECT matnr werks stlan stlnr stlal FROM mast
+  INTO CORRESPONDING FIELDS OF TABLE it_tab
+  WHERE matnr = wa_final-item_matnr AND
+  werks IN s_werks AND
+  stlan = p_stlan.
+
+  IF sy-subrc IS INITIAL.
+    DATA(lv_qty) = wa_final-mnglg1.
+*  WRITE:/ sy-tabix,'-',fs_stb1-matnr,'-', fs_stb1-mnglg,'-', wa_final-mnglg1,'-', lv_qty, '-', fs_stb1-idnrk.
+
+    LOOP AT it_tab INTO wa_tab.
+      CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+        EXPORTING
+          capid                 = 'PP01'
+          datuv                 = sy-datum
+          mktls                 = 'X'
+          mtnrv                 = wa_tab-matnr
+          stlal                 = wa_tab-stlal
+          stlan                 = wa_tab-stlan
+          stpst                 = 0
+          svwvo                 = 'X'
+          werks                 = wa_tab-werks
+        TABLES
+          stb                   = it_stb
+        EXCEPTIONS
+          alt_not_found         = 1
+          call_invalid          = 2
+          material_not_found    = 3
+          missing_authorization = 4
+          no_bom_found          = 5
+          no_plant_data         = 6
+          no_suitable_bom_found = 28
+          conversion_error      = 8
+          OTHERS                = 9.
+      IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+      CLEAR: wa_stb1, wa_stb.
+
+
+      LOOP AT it_stb INTO wa_stb.
+        wa_stb1-top_matnr  = wa_final-top_matnr.
+        wa_stb1-head_matnr = wa_tab-matnr.
+        wa_stb1-ojtxb = wa_stb-ojtxb.
+        wa_stb1-stufe = wa_stb-stufe.
+        wa_stb1-mtart = wa_stb-mtart.
+        wa_stb1-matmk = wa_stb-matmk.
+        wa_stb1-stlty = wa_stb-stlty.
+        wa_stb1-stlnr = wa_stb-stlnr.
+        wa_stb1-datuv = wa_stb-datuv.
+        wa_stb1-andat = wa_stb-andat.
+        wa_stb1-mnglg = wa_stb-menge.
+        wa_stb1-meins = wa_stb-meins.
+        wa_stb1-item_matnr = wa_stb-idnrk.
+        wa_stb1-ojtxp = wa_stb-ojtxp.
+        APPEND wa_stb1 TO it_stb1.
+        CLEAR : wa_stb.
+      ENDLOOP.
+
+      gv_counter = wa_final-stufe + 1.
+
+      LOOP AT it_stb1 INTO fs_stb1.
+        IF sy-subrc = 0.
+          wa_final-top_matnr = fs_stb1-top_matnr.
+          wa_final-head_matnr = fs_stb1-head_matnr.
+          wa_final-ojtxb = fs_stb1-ojtxb.
+          wa_final-stufe = gv_counter.
+          wa_final-mtart = fs_stb1-mtart.
+          wa_final-matmk = fs_stb1-matmk.
+          wa_final-stlty = fs_stb1-stlty.
+          wa_final-stlnr =  fs_stb1-stlnr.
+          wa_final-datuv =  fs_stb1-datuv.
+          wa_final-andat =  fs_stb1-andat.
+          wa_final-mnglg = fs_stb1-mnglg.
+          wa_final-mnglg1 = fs_stb1-mnglg * lv_qty.
+          wa_final-meins = fs_stb1-meins.
+          wa_final-item_matnr = fs_stb1-item_matnr.
+          wa_final-ojtxp = fs_stb1-ojtxp.
+          APPEND wa_final TO it_final.
+          CLEAR : fs_stb1.
+        ENDIF.
+*      CLEAR: lv_qty.
+      ENDLOOP.
+
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM. " RECURSIVE_BOM
+*&---------------------------------------------------------------------*
+*& Form BUILD_CATALOG
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM build_catalog .
+
+  fieldcatalog-fieldname = 'TOP_MATNR'.
+  fieldcatalog-seltext_m = 'TOP Parent'.
+  fieldcatalog-col_pos = 0.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'HEAD_MATNR'.
+  fieldcatalog-seltext_m = 'FG/ Parent'.
+  fieldcatalog-col_pos = 0.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'ITEM_MATNR'.
+  fieldcatalog-seltext_m = 'Component'.
+  fieldcatalog-col_pos = 1.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'STUFE'.
+  fieldcatalog-seltext_m = 'Level'.
+  fieldcatalog-col_pos = 2.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'WERKS'.
+  fieldcatalog-seltext_m = 'Plant'.
+  fieldcatalog-col_pos = 3.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'MTART'.
+  fieldcatalog-seltext_m = 'Material Type'.
+  fieldcatalog-col_pos = 4.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+
+  fieldcatalog-fieldname = 'MATMK'.
+  fieldcatalog-seltext_m = 'Material Group'.
+  fieldcatalog-col_pos = 5.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'OJTXB'.
+  fieldcatalog-seltext_m = 'FG/ Parent Desc'.
+  fieldcatalog-col_pos = 6.
+  fieldcatalog-outputlen = 40.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'STLTY'.
+  fieldcatalog-seltext_m = 'BOM category'.
+  fieldcatalog-col_pos = 7.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'STLNR'.
+  fieldcatalog-seltext_m = 'Bill of Material'.
+  fieldcatalog-col_pos = 8.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'DATUV'.
+  fieldcatalog-seltext_m = 'Valid-from/to date'.
+  fieldcatalog-col_pos = 9.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'ANDAT'.
+  fieldcatalog-seltext_m = 'Creation Date'.
+  fieldcatalog-col_pos = 10.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+
+  fieldcatalog-fieldname = 'MNGLG1'.
+  fieldcatalog-seltext_m = 'Total Quantity'.
+  fieldcatalog-col_pos = 11.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'MNGLG'.
+  fieldcatalog-seltext_m = 'Quantity Required'.
+  fieldcatalog-col_pos = 12.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'MEINS'.
+  fieldcatalog-seltext_m = 'Unit Of Measure'.
+  fieldcatalog-col_pos = 13.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'OJTXP'.
+  fieldcatalog-seltext_m = 'Component Desc'.
+  fieldcatalog-col_pos = 14.
+  fieldcatalog-outputlen = 40.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+  fieldcatalog-fieldname = 'PLNNR'.
+  fieldcatalog-seltext_m = 'Routing Number'.
+  fieldcatalog-col_pos = 15.
+  fieldcatalog-outputlen = 40.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR fieldcatalog.
+
+ENDFORM. " BUILD_CATALOG
+*&---------------------------------------------------------------------*
+
+*& Form DISPLAY_OUTPUT
+*&---------------------------------------------------------------------*
+* text
+*----------------------------------------------------------------------*
+* --> p1 text
+* <-- p2 text
+*----------------------------------------------------------------------*
+FORM display_output .
+  gd_repid = sy-repid.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = gd_repid
+      it_fieldcat        = fieldcatalog[]
+*     i_callback_top_of_page = 'TOP-OF-PAGE'
+      i_save             = 'X'
+*     IS_VARIANT         = g_variant
+    TABLES
+      t_outtab           = it_final
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form fill_rout
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM fill_rout .
+
+  MOVE-CORRESPONDING it_final TO gt_rout.
+  DELETE  ADJACENT DUPLICATES FROM gt_rout COMPARING item_matnr.
+
+  SELECT
+    matnr,
+    plnnr
+    FROM mapl
+    INTO TABLE @DATA(lt_rout)
+    FOR ALL ENTRIES IN @gt_rout
+    WHERE matnr = @gt_rout-item_matnr.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT it_final ASSIGNING FIELD-SYMBOL(<lfs_final>).
+      IF <lfs_final> IS ASSIGNED.
+        READ TABLE lt_rout INTO wa_rout WITH KEY matnr = <lfs_final>-item_matnr.
+        IF sy-subrc IS INITIAL.
+          <lfs_final>-plnnr = wa_rout-plnnr.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form bom_header1
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM bom_header1 .
+  SELECT matnr werks stlan a~stlnr a~stlal FROM mast AS a
+    INNER JOIN stko AS b ON a~stlnr = b~stlnr AND a~stlal = b~stlal
+  INTO CORRESPONDING FIELDS OF TABLE it_tab
+  WHERE a~matnr IN s_matnr AND
+  a~werks IN s_werks AND
+  a~stlan = p_stlan AND b~stlty = 'M' AND b~stlst = '01' .
+
+  SORT it_tab BY matnr werks stlan stlnr.
+  DELETE ADJACENT DUPLICATES FROM it_tab COMPARING matnr werks stlan stlnr.
+
+  SELECT stlnr,idnrk,datuv
+    FROM stpo
+    INTO TABLE @DATA(lt_stpo)
+    FOR ALL ENTRIES IN @it_tab
+    WHERE stlty = 'M'
+    AND stlnr = @it_tab-stlnr.
+
+
+  SORT lt_stpo ASCENDING BY stlnr idnrk DESCENDING datuv.
+  DELETE ADJACENT DUPLICATES FROM lt_stpo COMPARING stlnr idnrk.
+
+  IF sy-subrc IS INITIAL.
+    LOOP AT it_tab ASSIGNING FIELD-SYMBOL(<lfs_tab>).
+      IF <lfs_tab> IS ASSIGNED.
+        READ TABLE lt_stpo INTO DATA(lw_stpo) WITH KEY idnrk = <lfs_tab>-matnr.
+        IF sy-subrc IS INITIAL.
+          CLEAR <lfs_tab>-matnr.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    DELETE it_tab WHERE matnr IS INITIAL.
+  ENDIF.
+
+  CLEAR wa_tab.
+
+
+  CLEAR wa_tab.
+  LOOP AT it_tab INTO wa_tab.
+    CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+      EXPORTING
+        capid                 = 'PP01'
+        datuv                 = sy-datum
+        mktls                 = 'X'
+        mtnrv                 = wa_tab-matnr
+        stlal                 = wa_tab-stlal
+        stlan                 = wa_tab-stlan
+        stpst                 = 0
+        svwvo                 = 'X'
+        werks                 = wa_tab-werks
+      TABLES
+        stb                   = it_stb
+*MATCAT = ls_bom_exp_hdr
+      EXCEPTIONS
+        alt_not_found         = 1
+        call_invalid          = 2
+        material_not_found    = 3
+        missing_authorization = 4
+        no_bom_found          = 5
+        no_plant_data         = 6
+        no_suitable_bom_found = 28
+        conversion_error      = 8
+        OTHERS                = 9.
+
+    IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*      WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CLEAR: wa_stb1 , wa_stb.
+
+    LOOP AT it_stb INTO wa_stb.
+      wa_stb1-top_matnr      = wa_tab-matnr.
+      wa_stb1-head_matnr = wa_tab-matnr.
+      wa_stb1-ojtxb = wa_stb-ojtxb.
+      wa_stb1-stufe = wa_stb-stufe.
+      wa_stb1-mtart = wa_stb-mtart.
+      wa_stb1-matmk = wa_stb-matmk.
+      wa_stb1-stlty = wa_stb-stlty.
+      wa_stb1-stlnr = wa_stb-stlnr.
+      wa_stb1-datuv = wa_stb-datuv.
+      wa_stb1-andat = wa_stb-andat.
+      wa_stb1-mnglg = wa_stb-menge.
+      wa_stb1-meins = wa_stb-meins.
+      wa_stb1-item_matnr = wa_stb-idnrk.
+      wa_stb1-ojtxp = wa_stb-ojtxp.
+      APPEND wa_stb1 TO it_stb1.
+      CLEAR : wa_stb.
+    ENDLOOP.
+  ENDLOOP.
+ENDFORM.
