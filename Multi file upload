@@ -1,0 +1,72 @@
+REPORT z_upload_multiple_excel.
+
+TABLES: sscrfields.
+
+DATA: lt_file_table TYPE filetable,
+      lv_rc          TYPE i,
+      lv_filename    TYPE string,
+      lv_path        TYPE string,
+      lv_fullpath    TYPE string,
+      lt_data        TYPE TABLE OF alsmex_tabline,
+      lv_file_content TYPE string,
+      lv_lines       TYPE i.
+
+START-OF-SELECTION.
+
+  " Call the file open dialog to select multiple files
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      window_title            = 'Select Excel Files'
+      file_filter             = '*.xlsx;*.xls' " Filter for Excel files
+      multiselection          = 'X'
+    CHANGING
+      file_table              = lt_file_table
+      rc                      = lv_rc
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'File selection failed' TYPE 'E'.
+  ENDIF.
+
+  " Loop through the selected files
+  LOOP AT lt_file_table INTO lv_fullpath.
+    CLEAR: lt_data, lv_file_content.
+
+    " Upload each file
+    PERFORM upload_excel_file USING lv_fullpath CHANGING lt_data.
+
+    IF sy-subrc = 0.
+      " Process the uploaded data
+      LOOP AT lt_data INTO lv_file_content.
+        WRITE: / lv_file_content.
+      ENDLOOP.
+    ELSE.
+      MESSAGE 'File upload failed' TYPE 'E'.
+    ENDIF.
+
+  ENDLOOP.
+
+FORM upload_excel_file USING lv_fullpath TYPE string CHANGING lt_data TYPE TABLE OF alsmex_tabline.
+
+  DATA: lv_tab_raw_data TYPE truxs_t_text_data.
+
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+      i_tab_raw_data       = lv_tab_raw_data
+      i_filename           = lv_fullpath
+    TABLES
+      i_tab_converted_data = lt_data
+    EXCEPTIONS
+      conversion_failed    = 1
+      OTHERS               = 2.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'Excel file conversion failed' TYPE 'E'.
+  ENDIF.
+
+ENDFORM.
